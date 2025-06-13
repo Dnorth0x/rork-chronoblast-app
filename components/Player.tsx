@@ -1,8 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PlayerProps } from '@/types';
 
-const Player = React.forwardRef<View, PlayerProps>(({ x, y, color }, ref) => {
+const Player = React.forwardRef<View, PlayerProps>(({ x, y, color, isInvincible }, ref) => {
+  const [opacity, setOpacity] = useState(1);
+
+  // Flashing effect when invincible
+  useEffect(() => {
+    let flashInterval: NodeJS.Timeout | null = null;
+
+    if (isInvincible) {
+      // Start flashing
+      flashInterval = setInterval(() => {
+        setOpacity(prevOpacity => prevOpacity === 1 ? 0.3 : 1);
+      }, 100); // Flash every 100ms
+    } else {
+      // Stop flashing and reset opacity
+      if (flashInterval) {
+        clearInterval(flashInterval);
+      }
+      setOpacity(1);
+    }
+
+    return () => {
+      if (flashInterval) {
+        clearInterval(flashInterval);
+      }
+    };
+  }, [isInvincible]);
+
   return (
     <View 
       ref={ref}
@@ -12,6 +38,7 @@ const Player = React.forwardRef<View, PlayerProps>(({ x, y, color }, ref) => {
           left: x,
           top: y,
           backgroundColor: color,
+          opacity: opacity,
         }
       ]} 
     />

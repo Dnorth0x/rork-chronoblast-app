@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, PanResponder, Dimensions, Text } from 'react-native';
+import { StyleSheet, View, PanResponder, Dimensions, Text, Animated } from 'react-native';
 import Player from './Player';
 import Enemy from './Enemy';
 import { EnemyObject } from '@/types';
@@ -15,6 +15,10 @@ export default function GameScreen() {
   
   // Ref to the player component for direct native updates
   const playerRef = useRef<View>(null);
+  
+  // Ref for the main container to enable screen shake
+  const containerRef = useRef<View>(null);
+  const shakeAnimation = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   // Initial position state (only used for initial render)
   const [initialPlayerPosition] = useState({
@@ -25,12 +29,14 @@ export default function GameScreen() {
   const [enemies, setEnemies] = useState<EnemyObject[]>([]);
   const [playerHealth, setPlayerHealth] = useState(100);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isPlayerInvincible, setIsPlayerInvincible] = useState(false);
   const [spawnRate, setSpawnRate] = useState(2000); // milliseconds
   const [timeElapsed, setTimeElapsed] = useState(0); // seconds
 
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
   const spawnerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const invincibilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const enemyIdCounter = useRef(0);
 
   const panResponder = PanResponder.create({
@@ -60,6 +66,39 @@ export default function GameScreen() {
       }
     },
   });
+
+  // Screen shake animation function
+  const triggerScreenShake = () => {
+    const shakeSequence = Animated.sequence([
+      Animated.timing(shakeAnimation, {
+        toValue: { x: -8, y: -4 },
+        duration: 50,
+        useNativeDriver: false,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: { x: 8, y: 4 },
+        duration: 50,
+        useNativeDriver: false,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: { x: -6, y: -2 },
+        duration: 50,
+        useNativeDriver: false,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: { x: 6, y: 2 },
+        duration: 50,
+        useNativeDriver: false,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: { x: 0, y: 0 },
+        duration: 50,
+        useNativeDriver: false,
+      }),
+    ]);
+
+    shakeSequence.start();
+  };
 
   // Function to generate random off-screen position
   const generateOffScreenPosition = () => {
@@ -231,7 +270,23 @@ export default function GameScreen() {
         // Check for collisions using ref position
         const collidedEnemyIds = checkCollisions(updatedEnemies);
         
-        if (collidedEnemyIds.length > 0) {
+        if (collidedEnemyIds.length > 0 && !isPlayerInvincible) {
+          // Trigger screen shake effect
+          triggerScreenShake();
+          
+          // Set player invincible
+          setIsPlayerInvincible(true);
+          
+          // Clear any existing invincibility timeout
+          if (invincibilityTimeoutRef.current) {
+            clearTimeout(invincibilityTimeoutRef.current);
+          }
+          
+          // Set timeout to remove invincibility after 1000ms
+          invincibilityTimeoutRef.current = setTimeout(() => {
+            setIsPlayerInvincible(false);
+          }, 1000);
+          
           // Decrease health and remove collided enemies
           setPlayerHealth(prevHealth => {
             const newHealth = prevHealth - collidedEnemyIds.length;
@@ -254,7 +309,7 @@ export default function GameScreen() {
     return () => {
       clearInterval(gameLoopId);
     };
-  }, [isGameOver]);
+  }, [isGameOver, isPlayerInvincible]);
 
   // Clean up all timers on unmount
   useEffect(() => {
@@ -271,16 +326,33 @@ export default function GameScreen() {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      if (invincibilityTimeoutRef.current) {
+        clearTimeout(invincibilityTimeoutRef.current);
+        invincibilityTimeoutRef.current = null;
+      }
     };
   }, []);
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <Animated.View 
+      ref={containerRef}
+      style={[
+        styles.container,
+        {
+          transform: [
+            { translateX: shakeAnimation.x },
+            { translateY: shakeAnimation.y }
+          ]
+        }
+      ]} 
+      {...panResponder.panHandlers}
+    >
       <Player 
         ref={playerRef}
         x={initialPlayerPosition.x} 
         y={initialPlayerPosition.y} 
-        color="#00FFFF" 
+        color="#00FFFF"
+        isInvincible={isPlayerInvincible}
       />
       {enemies.map(enemy => (
         <Enemy 
@@ -293,7 +365,9 @@ export default function GameScreen() {
       
       {/* Game stats display */}
       <View style={styles.statsContainer}>
-        <Text style={styles.healthText}>Health: {playerHealth}</Text>
+        <Text style={[styles.healthText, isPlayerInvincible && styles.invincibleText]}>
+          Health: {playerHealth} {isPlayerInvincible ? '(INVINCIBLE)' : ''}
+        </Text>
         <Text style={styles.timeText}>Time: {timeElapsed}s</Text>
         <Text style={styles.enemyText}>Enemies: {enemies.length}</Text>
         <Text style={styles.difficultyText}>Spawn Rate: {spawnRate}ms</Text>
@@ -307,7 +381,7 @@ export default function GameScreen() {
           <Text style={styles.gameOverStats}>Final Score: {timeElapsed * 10} points</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -331,6 +405,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
+  },
+  invincibleText: {
+    color: '#FFD700',
   },
   timeText: {
     color: '#FFFFFF',

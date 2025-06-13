@@ -1,17 +1,18 @@
-export interface PlayerProps {
+export interface EnemyObject {
+  id: string;
   x: number;
   y: number;
   color: string;
 }
 
-export interface EnemyProps {
+export interface PlayerProps {
   x: number;
   y: number;
-  color?: string;
+  color: string;
+  isInvincible?: boolean;
 }
 
-export interface EnemyObject {
-  id: string;
+export interface EnemyProps {
   x: number;
   y: number;
   color: string;
