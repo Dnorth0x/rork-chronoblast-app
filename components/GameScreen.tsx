@@ -28,7 +28,7 @@ export default function GameScreen() {
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <Player x={playerPosition.x} y={playerPosition.y} />
+      <Player x={playerPosition.x} y={playerPosition.y} color="#00FFFF" />
       <Enemy x={100} y={100} />
     </View>
   );

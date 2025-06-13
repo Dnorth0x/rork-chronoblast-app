@@ -25,6 +25,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    backgroundColor: '#FF0000',
+    backgroundColor: '#FF00FF', // Vibrant magenta
+    borderRadius: 15, // Makes it a perfect circle
   },
 });

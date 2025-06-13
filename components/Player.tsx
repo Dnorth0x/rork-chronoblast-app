@@ -4,9 +4,10 @@ import { StyleSheet, View } from 'react-native';
 interface PlayerProps {
   x: number;
   y: number;
+  color: string;
 }
 
-export default function Player({ x, y }: PlayerProps) {
+export default function Player({ x, y, color }: PlayerProps) {
   return (
     <View 
       style={[
@@ -14,6 +15,7 @@ export default function Player({ x, y }: PlayerProps) {
         {
           left: x,
           top: y,
+          backgroundColor: color,
         }
       ]} 
     />
@@ -25,7 +27,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 40,
     height: 40,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+    borderRadius: 20, // Makes it a perfect circle
   },
 });
