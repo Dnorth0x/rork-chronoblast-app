@@ -126,15 +126,14 @@ export default function GameScreen() {
       return;
     }
 
-    spawnerRef.current = setInterval(() => {
+    const spawnerId = setInterval(() => {
       spawnEnemy();
     }, spawnRate);
+    
+    spawnerRef.current = spawnerId;
 
     return () => {
-      if (spawnerRef.current) {
-        clearInterval(spawnerRef.current);
-        spawnerRef.current = null;
-      }
+      clearInterval(spawnerId);
     };
   }, [spawnRate, isGameOver]);
 
@@ -148,7 +147,7 @@ export default function GameScreen() {
       return;
     }
 
-    timerRef.current = setInterval(() => {
+    const difficultyTimerId = setInterval(() => {
       setTimeElapsed(prevTime => {
         const newTime = prevTime + 1;
         
@@ -164,11 +163,10 @@ export default function GameScreen() {
       });
     }, 1000); // Run every second
 
+    timerRef.current = difficultyTimerId;
+
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      clearInterval(difficultyTimerId);
     };
   }, [isGameOver]);
 
@@ -182,7 +180,7 @@ export default function GameScreen() {
       return;
     }
 
-    gameLoopRef.current = setInterval(() => {
+    const gameLoopId = setInterval(() => {
       setEnemies(prevEnemies => {
         // Move enemies towards player
         const updatedEnemies = prevEnemies.map(enemy => {
@@ -230,11 +228,10 @@ export default function GameScreen() {
       });
     }, 16); // ~60 FPS
 
+    gameLoopRef.current = gameLoopId;
+
     return () => {
-      if (gameLoopRef.current) {
-        clearInterval(gameLoopRef.current);
-        gameLoopRef.current = null;
-      }
+      clearInterval(gameLoopId);
     };
   }, [playerPosition, isGameOver]);
 
@@ -243,12 +240,15 @@ export default function GameScreen() {
     return () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
+        gameLoopRef.current = null;
       }
       if (spawnerRef.current) {
         clearInterval(spawnerRef.current);
+        spawnerRef.current = null;
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
   }, []);
