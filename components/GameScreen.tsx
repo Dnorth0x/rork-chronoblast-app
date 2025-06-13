@@ -7,9 +7,19 @@ import { EnemyObject } from '@/types';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function GameScreen() {
-  const [playerPosition, setPlayerPosition] = useState({
+  // Use refs for player position to avoid re-renders
+  const positionRef = useRef({
     x: screenWidth / 2 - 20, // Center horizontally (minus half player width)
     y: screenHeight / 2 - 20, // Center vertically (minus half player height)
+  });
+  
+  // Ref to the player component for direct native updates
+  const playerRef = useRef<View>(null);
+
+  // Initial position state (only used for initial render)
+  const [initialPlayerPosition] = useState({
+    x: screenWidth / 2 - 20,
+    y: screenHeight / 2 - 20,
   });
 
   const [enemies, setEnemies] = useState<EnemyObject[]>([]);
@@ -33,10 +43,21 @@ export default function GameScreen() {
       const newX = Math.max(0, Math.min(screenWidth - 40, gestureState.moveX - 20));
       const newY = Math.max(0, Math.min(screenHeight - 40, gestureState.moveY - 20));
       
-      setPlayerPosition({
+      // Update position ref instead of state
+      positionRef.current = {
         x: newX,
         y: newY,
-      });
+      };
+
+      // Directly update the native component without re-render
+      if (playerRef.current) {
+        playerRef.current.setNativeProps({
+          style: {
+            left: newX,
+            top: newY,
+          }
+        });
+      }
     },
   });
 
@@ -89,10 +110,10 @@ export default function GameScreen() {
     setEnemies(prevEnemies => [...prevEnemies, newEnemy]);
   };
 
-  // Collision detection function
-  const checkCollisions = (playerPos: { x: number; y: number }, enemiesArray: EnemyObject[]) => {
-    const playerCenterX = playerPos.x + 20; // Player radius is 20
-    const playerCenterY = playerPos.y + 20;
+  // Collision detection function - now uses positionRef instead of state
+  const checkCollisions = (enemiesArray: EnemyObject[]) => {
+    const playerCenterX = positionRef.current.x + 20; // Player radius is 20
+    const playerCenterY = positionRef.current.y + 20;
     const playerRadius = 20;
     const enemyRadius = 15;
     const collisionDistance = playerRadius + enemyRadius;
@@ -170,7 +191,7 @@ export default function GameScreen() {
     };
   }, [isGameOver]);
 
-  // Game loop for enemy movement and collision detection
+  // Game loop for enemy movement and collision detection - now uses positionRef
   useEffect(() => {
     if (isGameOver) {
       if (gameLoopRef.current) {
@@ -182,11 +203,11 @@ export default function GameScreen() {
 
     const gameLoopId = setInterval(() => {
       setEnemies(prevEnemies => {
-        // Move enemies towards player
+        // Move enemies towards player using current position from ref
         const updatedEnemies = prevEnemies.map(enemy => {
-          // Calculate direction to player
-          const dx = (playerPosition.x + 20) - (enemy.x + 15); // Center to center
-          const dy = (playerPosition.y + 20) - (enemy.y + 15);
+          // Calculate direction to player using ref position
+          const dx = (positionRef.current.x + 20) - (enemy.x + 15); // Center to center
+          const dy = (positionRef.current.y + 20) - (enemy.y + 15);
           
           // Calculate distance
           const distance = Math.sqrt(dx * dx + dy * dy);
@@ -207,8 +228,8 @@ export default function GameScreen() {
           return enemy;
         });
 
-        // Check for collisions
-        const collidedEnemyIds = checkCollisions(playerPosition, updatedEnemies);
+        // Check for collisions using ref position
+        const collidedEnemyIds = checkCollisions(updatedEnemies);
         
         if (collidedEnemyIds.length > 0) {
           // Decrease health and remove collided enemies
@@ -233,7 +254,7 @@ export default function GameScreen() {
     return () => {
       clearInterval(gameLoopId);
     };
-  }, [playerPosition, isGameOver]);
+  }, [isGameOver]);
 
   // Clean up all timers on unmount
   useEffect(() => {
@@ -255,7 +276,12 @@ export default function GameScreen() {
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <Player x={playerPosition.x} y={playerPosition.y} color="#00FFFF" />
+      <Player 
+        ref={playerRef}
+        x={initialPlayerPosition.x} 
+        y={initialPlayerPosition.y} 
+        color="#00FFFF" 
+      />
       {enemies.map(enemy => (
         <Enemy 
           key={enemy.id}
