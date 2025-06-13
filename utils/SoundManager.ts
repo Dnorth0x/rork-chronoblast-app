@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type SoundType = 
   | 'button_click'
@@ -51,10 +52,12 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
   screen_shake: { frequency: 150, duration: 100, volume: 0.8 },
 };
 
+const MUTE_STORAGE_KEY = '@chronoblast_sound_muted';
+
 class SoundManager {
   private static instance: SoundManager;
   private initialized = false;
-  private enabled = true;
+  private isMuted = false;
   private masterVolume = 1.0;
   private activeSounds: Audio.Sound[] = [];
 
@@ -78,18 +81,45 @@ class SoundManager {
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
       });
+
+      // Load muted state from AsyncStorage
+      try {
+        const savedMuteState = await AsyncStorage.getItem(MUTE_STORAGE_KEY);
+        if (savedMuteState !== null) {
+          this.isMuted = JSON.parse(savedMuteState);
+        }
+      } catch (error) {
+        console.log('Failed to load mute state:', error);
+      }
+
       this.initialized = true;
-      console.log('SoundManager initialized successfully');
+      console.log('SoundManager initialized successfully, muted:', this.isMuted);
     } catch (error) {
       console.log('SoundManager initialization failed:', error);
     }
   }
 
   setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-    if (!enabled) {
+    this.toggleMute(!enabled);
+  }
+
+  async toggleMute(mute: boolean): Promise<void> {
+    this.isMuted = mute;
+    
+    if (mute) {
       this.stopAllSounds();
     }
+
+    // Save mute state to AsyncStorage
+    try {
+      await AsyncStorage.setItem(MUTE_STORAGE_KEY, JSON.stringify(mute));
+    } catch (error) {
+      console.log('Failed to save mute state:', error);
+    }
+  }
+
+  isSoundMuted(): boolean {
+    return this.isMuted;
   }
 
   setMasterVolume(volume: number): void {
@@ -97,7 +127,7 @@ class SoundManager {
   }
 
   async play(soundType: SoundType, volumeMultiplier: number = 1): Promise<void> {
-    if (!this.enabled || Platform.OS === 'web' || !this.initialized) return;
+    if (this.isMuted || Platform.OS === 'web' || !this.initialized) return;
     
     const config = SOUND_CONFIGS[soundType];
     if (!config) return;

@@ -22,11 +22,14 @@ export default function MainMenuScreen() {
   const pulseAnimation = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Initialize sound manager
-    soundManager.init();
+    // Initialize sound manager and load mute state
+    const initializeSound = async () => {
+      await soundManager.init();
+      const isMuted = soundManager.isSoundMuted();
+      setSoundEnabled(!isMuted);
+    };
     
-    // Set sound enabled state
-    soundManager.setEnabled(soundEnabled);
+    initializeSound();
 
     // Entrance animations
     Animated.parallel([
@@ -88,7 +91,7 @@ export default function MainMenuScreen() {
       ]).start(() => pulse());
     };
     pulse();
-  }, [soundEnabled]);
+  }, []);
 
   const handleButtonPress = async (action: () => void, soundType: 'button_click' | 'menu_open' = 'button_click') => {
     if (soundEnabled) {
@@ -112,10 +115,10 @@ export default function MainMenuScreen() {
     action();
   };
 
-  const toggleSound = () => {
+  const toggleSound = async () => {
     const newSoundState = !soundEnabled;
     setSoundEnabled(newSoundState);
-    soundManager.setEnabled(newSoundState);
+    await soundManager.toggleMute(!newSoundState);
     
     if (newSoundState) {
       soundManager.playUISound('button_click');
