@@ -216,10 +216,11 @@ export const useGameStore = create<GameState>()(
           },
         }));
         
-        // Initialize background stars
+        // Initialize background stars with reduced count for performance
         const { canvasWidth, canvasHeight } = get();
         const stars: Star[] = [];
-        for (let i = 0; i < 30; i++) {
+        const starCount = get().performanceMode ? 10 : 20; // Reduced from 30
+        for (let i = 0; i < starCount; i++) {
           stars.push({
             id: `star-${i}`,
             x: Math.random() * canvasWidth,
@@ -397,13 +398,13 @@ export const useGameStore = create<GameState>()(
           }
           
           // Update player movement with optimized lerp factor
-          const lerpFactor = state.performanceMode ? player.lerpFactor * 0.8 : player.lerpFactor;
+          const lerpFactor = state.performanceMode ? player.lerpFactor * 0.6 : player.lerpFactor * 0.8; // Reduced responsiveness for performance
           
           if (player.isDashing) {
             const dashProgress = Math.min(1, (currentTime - player.dashEndTime + GAME_CONFIG.PLAYER_DASH_DURATION) / GAME_CONFIG.PLAYER_DASH_DURATION);
             const easeOut = 1 - Math.pow(1 - dashProgress, 3); // Cubic ease-out
-            player.x += (player.dashTargetX - player.x) * 0.4;
-            player.y += (player.dashTargetY - player.y) * 0.4;
+            player.x += (player.dashTargetX - player.x) * 0.3; // Reduced from 0.4
+            player.y += (player.dashTargetY - player.y) * 0.3;
             
             if (currentTime >= player.dashEndTime) {
               player.isDashing = false;
@@ -425,8 +426,8 @@ export const useGameStore = create<GameState>()(
           player.x = Math.max(player.baseRadius, Math.min(state.canvasWidth - player.baseRadius, player.x));
           player.y = Math.max(player.baseRadius, Math.min(state.canvasHeight - player.baseRadius, player.y));
           
-          // Update player pulse
-          player.pulseAngle += player.pulseSpeed;
+          // Update player pulse (reduced frequency for performance)
+          player.pulseAngle += player.pulseSpeed * (state.performanceMode ? 0.5 : 1);
           if (!player.isPopping && !player.isDashing) {
             player.radius = player.baseRadius + Math.sin(player.pulseAngle) * player.pulseMagnitude;
           }
@@ -436,49 +437,50 @@ export const useGameStore = create<GameState>()(
             player.isPopping = false;
           }
           
-          // Update particles with performance optimizations
+          // Update particles with aggressive performance optimizations
           const speedMultiplier = state.activePowerUps[PT.SLOW_ENEMY].active ? 0.5 : 1;
-          const maxParticles = state.performanceMode ? 25 : GAME_CONFIG.MAX_PARTICLES_ON_SCREEN;
+          const maxParticles = state.performanceMode ? 12 : 18; // Reduced from 25/GAME_CONFIG.MAX_PARTICLES_ON_SCREEN
           
           const particles = state.particles.slice(0, maxParticles).map(p => {
             const newP = {
               ...p,
               x: p.x + p.baseVx * speedMultiplier,
               y: p.y + p.baseVy * speedMultiplier,
-              rotation: p.rotation + p.rotationSpeed,
-              breatheAngle: p.breatheAngle + GAME_CONFIG.PARTICLE_BREATHE_SPEED,
+              rotation: p.rotation + p.rotationSpeed * (state.performanceMode ? 0.5 : 1),
+              breatheAngle: p.breatheAngle + GAME_CONFIG.PARTICLE_BREATHE_SPEED * (state.performanceMode ? 0.5 : 1),
               radius: p.radiusBase * (1 + Math.sin(p.breatheAngle) * GAME_CONFIG.PARTICLE_BREATHE_MAGNITUDE),
-              trail: [...p.trail.slice(-4), { x: p.x, y: p.y }],
+              trail: state.performanceMode ? [] : [...p.trail.slice(-2), { x: p.x, y: p.y }], // Reduced trail length
             };
             return newP;
           }).filter(p => {
-            const margin = p.radius * 3;
+            const margin = p.radius * 2; // Reduced margin
             return !(p.x < -margin || p.x > state.canvasWidth + margin || 
                     p.y < -margin || p.y > state.canvasHeight + margin);
           });
           
-          // Update collection effects (limit in performance mode)
-          const maxEffects = state.performanceMode ? 5 : 20;
+          // Update collection effects (aggressive limiting)
+          const maxEffects = state.performanceMode ? 2 : 5; // Reduced from 5/20
           const collectionEffects = state.collectionEffects
             .slice(0, maxEffects)
             .map(e => ({
               ...e,
               particles: e.particles
+                .slice(0, state.performanceMode ? 3 : 8) // Limit effect particles
                 .map(p => ({
                   ...p,
                   x: p.x + p.vx,
                   y: p.y + p.vy,
-                  alpha: p.alpha - p.decay,
-                  radius: p.radius * 0.97,
+                  alpha: p.alpha - p.decay * (state.performanceMode ? 2 : 1), // Faster decay in performance mode
+                  radius: p.radius * (state.performanceMode ? 0.95 : 0.97),
                 }))
                 .filter(p => p.alpha > 0 && p.radius > 0.3),
             }))
             .filter(e => e.particles.length > 0);
           
-          // Update background stars
-          const backgroundStars = state.backgroundStars.map(s => {
-            let x = s.x + s.vx;
-            let y = s.y + s.vy;
+          // Update background stars (reduced frequency)
+          const backgroundStars = state.performanceMode ? [] : state.backgroundStars.map(s => {
+            let x = s.x + s.vx * 0.5; // Slower movement
+            let y = s.y + s.vy * 0.5;
             
             if (x < -s.radius) x = state.canvasWidth + s.radius;
             if (x > state.canvasWidth + s.radius) x = -s.radius;
@@ -489,7 +491,7 @@ export const useGameStore = create<GameState>()(
               ...s, 
               x, 
               y, 
-              twinklePhase: s.twinklePhase + 0.02,
+              twinklePhase: s.twinklePhase + 0.01, // Reduced from 0.02
               alpha: s.alpha * (0.8 + 0.4 * Math.sin(s.twinklePhase))
             };
           });
@@ -516,7 +518,7 @@ export const useGameStore = create<GameState>()(
       
       spawnParticle: () => {
         set(state => {
-          const maxParticles = state.performanceMode ? 20 : GAME_CONFIG.MAX_PARTICLES_ON_SCREEN;
+          const maxParticles = state.performanceMode ? 12 : 18; // Reduced from 20/GAME_CONFIG.MAX_PARTICLES_ON_SCREEN
           if (state.particles.length >= maxParticles || !state.canvasWidth || !state.canvasHeight) {
             return state;
           }
@@ -567,7 +569,7 @@ export const useGameStore = create<GameState>()(
             points: typeDetails.points,
             timeBonus: typeDetails.time || 0,
             powerUpType: typeDetails.powerUp || null,
-            effectParticleCount: typeDetails.effectParticles,
+            effectParticleCount: state.performanceMode ? Math.min(typeDetails.effectParticles, 5) : typeDetails.effectParticles,
             glowColor: typeDetails.glow || color,
             shape: typeDetails.shape || 'crystal',
             isPowerUpParticle: !!typeDetails.powerUp,
@@ -656,8 +658,8 @@ export const useGameStore = create<GameState>()(
                 state.activePowerUps[p.powerUpType].endTime = currentTime + GAME_CONFIG.POWERUP_DURATION;
               }
               
-              // Create collection effect (limit particles in performance mode)
-              const effectParticleCount = state.performanceMode ? Math.min(p.effectParticleCount, 5) : p.effectParticleCount;
+              // Create collection effect (aggressive limiting for performance)
+              const effectParticleCount = state.performanceMode ? Math.min(p.effectParticleCount, 3) : Math.min(p.effectParticleCount, 8);
               newCollectionEffects.push({
                 id: Math.random().toString(36).substr(2, 9),
                 x: p.x,
@@ -666,15 +668,15 @@ export const useGameStore = create<GameState>()(
                 spawnTime: currentTime,
                 particles: Array.from({ length: effectParticleCount }, () => {
                   const angle = Math.random() * Math.PI * 2;
-                  const speed = Math.random() * 4 + 2;
+                  const speed = Math.random() * 3 + 1.5; // Reduced speed
                   return {
                     x: p.x,
                     y: p.y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
-                    radius: Math.random() * (p.radius * 0.4) + 1.5,
+                    radius: Math.random() * (p.radius * 0.3) + 1, // Smaller effect particles
                     alpha: 1,
-                    decay: Math.random() * 0.02 + 0.02,
+                    decay: Math.random() * 0.03 + 0.03, // Faster decay
                   };
                 }),
               });

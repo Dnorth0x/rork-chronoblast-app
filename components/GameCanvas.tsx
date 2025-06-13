@@ -35,12 +35,13 @@ const GameCanvas: React.FC = () => {
   const spawnRateUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const lastPlayerUpdateTime = useRef<number>(0);
   const frameSkipCounter = useRef<number>(0);
+  const collisionCheckCounter = useRef<number>(0);
 
   // Heavily throttle player position updates to improve performance
   const throttledUpdatePlayerPosition = useCallback((x: number, y: number) => {
     const now = Date.now();
-    // Increased throttling from 32ms to 50ms (20fps instead of 30fps)
-    if (now - lastPlayerUpdateTime.current > 50) {
+    // Increased throttling from 50ms to 100ms (10fps instead of 20fps)
+    if (now - lastPlayerUpdateTime.current > 100) {
       updatePlayerPosition(x, y);
       lastPlayerUpdateTime.current = now;
     }
@@ -53,29 +54,29 @@ const GameCanvas: React.FC = () => {
 
   useEffect(() => {
     if (gameActive && !isPaused && !gameStarting) {
-      // Timer interval - further reduced frequency
+      // Timer interval - reduced frequency significantly
       if (timerInterval.current) clearInterval(timerInterval.current);
       timerInterval.current = setInterval(() => {
         if (!gameActive || isPaused || gameStarting) return;
         useGameStore.setState(state => ({
-          timeLeft: Math.max(0, state.timeLeft - 0.03), // Reduced from 0.02 to 0.03
-          gameActive: state.timeLeft > 0.03 ? state.gameActive : false,
+          timeLeft: Math.max(0, state.timeLeft - 0.05), // Increased from 0.03 to 0.05
+          gameActive: state.timeLeft > 0.05 ? state.gameActive : false,
         }));
-      }, 30); // Increased from 20ms to 30ms
+      }, 50); // Increased from 30ms to 50ms
 
       // Particle spawner with performance-based adjustment
       if (particleSpawnerInterval.current) clearInterval(particleSpawnerInterval.current);
       const createSpawner = () => {
         if (particleSpawnerInterval.current) clearInterval(particleSpawnerInterval.current);
         const baseInterval = useGameStore.getState().currentParticleSpawnInterval;
-        const adjustedInterval = performanceMode ? baseInterval * 1.5 : baseInterval;
+        const adjustedInterval = performanceMode ? baseInterval * 2 : baseInterval * 1.2; // More aggressive throttling
         particleSpawnerInterval.current = setInterval(() => {
           if (gameActive && !isPaused && !gameStarting) spawnParticle();
         }, adjustedInterval);
       };
       createSpawner();
 
-      // Spawn rate updater
+      // Spawn rate updater - less frequent updates
       if (spawnRateUpdateInterval.current) clearInterval(spawnRateUpdateInterval.current);
       spawnRateUpdateInterval.current = setInterval(() => {
         if (gameActive && !isPaused && !gameStarting) {
@@ -90,7 +91,7 @@ const GameCanvas: React.FC = () => {
             createSpawner();
           }
         }
-      }, GAME_CONFIG.SPAWN_RATE_UPDATE_INTERVAL);
+      }, GAME_CONFIG.SPAWN_RATE_UPDATE_INTERVAL * 1.5); // 50% longer intervals
     }
 
     return () => {
@@ -115,7 +116,7 @@ const GameCanvas: React.FC = () => {
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
-        // Render background stars (if not in performance mode)
+        // Render background stars (skip in performance mode)
         if (!performanceMode) {
           backgroundStars.forEach(star => {
             ctx.save();
@@ -128,8 +129,8 @@ const GameCanvas: React.FC = () => {
           });
         }
 
-        // Render particles (limit in performance mode)
-        const particlesToRender = performanceMode ? particles.slice(0, 15) : particles;
+        // Render particles (aggressive limiting in performance mode)
+        const particlesToRender = performanceMode ? particles.slice(0, 8) : particles.slice(0, 20);
         particlesToRender.forEach(particle => {
           ctx.save();
           
@@ -147,7 +148,7 @@ const GameCanvas: React.FC = () => {
           ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
           ctx.fill();
           
-          // Add glow effect for power-up particles
+          // Add glow effect for power-up particles (skip in performance mode)
           if (particle.isPowerUpParticle && !performanceMode) {
             ctx.strokeStyle = particle.glowColor;
             ctx.lineWidth = 2;
@@ -157,9 +158,9 @@ const GameCanvas: React.FC = () => {
           ctx.restore();
         });
 
-        // Render collection effects (limit in performance mode)
+        // Skip collection effects in performance mode
         if (!performanceMode) {
-          collectionEffects.forEach(effect => {
+          collectionEffects.slice(0, 3).forEach(effect => {
             effect.particles.forEach(p => {
               ctx.save();
               ctx.globalAlpha = p.alpha * 0.9;
@@ -220,7 +221,7 @@ const GameCanvas: React.FC = () => {
         ctx.lineWidth = isInvulnerable ? 2 : 1;
         ctx.stroke();
         
-        // Dash trail effect (only if not in performance mode)
+        // Skip dash trail in performance mode
         if (player.isDashing && !performanceMode) {
           ctx.globalAlpha = 0.4;
           ctx.fillStyle = rainbowColor;
@@ -244,21 +245,21 @@ const GameCanvas: React.FC = () => {
     backgroundStars, performanceMode, getEquippedItem
   ]);
 
-  // Optimized game loop with frame skipping
+  // Optimized game loop with aggressive frame skipping
   useEffect(() => {
     const gameLoop = (timestamp: number) => {
       if (!lastUpdate) setLastUpdate(timestamp);
       const deltaTime = timestamp - lastUpdate;
       setLastUpdate(timestamp);
       
-      // Frame skipping for performance
+      // More aggressive frame skipping
       frameSkipCounter.current++;
-      const shouldSkipFrame = performanceMode && frameSkipCounter.current % 2 === 0;
+      const shouldSkipFrame = performanceMode ? frameSkipCounter.current % 3 === 0 : frameSkipCounter.current % 2 === 0;
       
       if (!shouldSkipFrame) {
         // FPS calculation (less frequent updates)
         setFrameCount(prev => prev + 1);
-        if (timestamp - lastFpsUpdate > 3000) { // Increased from 2000ms to 3000ms
+        if (timestamp - lastFpsUpdate > 4000) { // Increased from 3000ms to 4000ms
           const fps = frameCount / ((timestamp - lastFpsUpdate) / 1000);
           updatePerformanceMode(fps);
           setFrameCount(0);
@@ -267,8 +268,14 @@ const GameCanvas: React.FC = () => {
         
         if (gameActive && !isPaused && !gameStarting) {
           updateGame(deltaTime);
-          // Reduce collision check frequency in performance mode
-          if (!performanceMode || frameSkipCounter.current % 3 === 0) {
+          
+          // Reduce collision check frequency significantly
+          collisionCheckCounter.current++;
+          const shouldCheckCollisions = performanceMode 
+            ? collisionCheckCounter.current % 5 === 0 
+            : collisionCheckCounter.current % 2 === 0;
+          
+          if (shouldCheckCollisions) {
             checkCollisions();
           }
         }
@@ -324,19 +331,19 @@ const GameCanvas: React.FC = () => {
     );
   }
 
-  // Mobile rendering using React Native components
+  // Mobile rendering using React Native components - Fixed for better performance and visibility
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <View style={styles.gameArea}>
-        {/* Background Stars */}
-        {!performanceMode && backgroundStars.map(star => (
+      <View style={[styles.gameArea, { width: canvasWidth, height: canvasHeight }]}>
+        {/* Background Stars - Skip in performance mode */}
+        {!performanceMode && backgroundStars.slice(0, 15).map(star => (
           <Animated.View
             key={star.id}
             style={[
               styles.star,
               {
-                left: star.x,
-                top: star.y,
+                left: star.x - star.radius,
+                top: star.y - star.radius,
                 width: star.radius * 2,
                 height: star.radius * 2,
                 opacity: star.alpha,
@@ -345,8 +352,8 @@ const GameCanvas: React.FC = () => {
           />
         ))}
 
-        {/* Particles - limit in performance mode */}
-        {(performanceMode ? particles.slice(0, 20) : particles).map(particle => (
+        {/* Particles - aggressive limiting for performance */}
+        {(performanceMode ? particles.slice(0, 10) : particles.slice(0, 15)).map(particle => (
           <View
             key={particle.id}
             style={[
@@ -357,19 +364,19 @@ const GameCanvas: React.FC = () => {
                 width: particle.radius * 2,
                 height: particle.radius * 2,
                 backgroundColor: particle.color,
-                borderColor: particle.isPowerUpParticle ? particle.glowColor : 'transparent',
-                borderWidth: particle.isPowerUpParticle ? 2 : 0,
+                borderColor: particle.isPowerUpParticle && !performanceMode ? particle.glowColor : 'transparent',
+                borderWidth: particle.isPowerUpParticle && !performanceMode ? 2 : 0,
                 shadowColor: particle.glowColor,
-                shadowOpacity: performanceMode ? 0.4 : 0.8,
-                shadowRadius: particle.radius * 0.5,
+                shadowOpacity: performanceMode ? 0.2 : 0.6,
+                shadowRadius: performanceMode ? particle.radius * 0.2 : particle.radius * 0.4,
               }
             ]}
           />
         ))}
 
         {/* Collection Effects - skip in performance mode */}
-        {!performanceMode && collectionEffects.map(effect => 
-          effect.particles.map((p, index) => (
+        {!performanceMode && collectionEffects.slice(0, 2).map(effect => 
+          effect.particles.slice(0, 5).map((p, index) => (
             <View
               key={`${effect.id}-${index}`}
               style={[
@@ -387,7 +394,7 @@ const GameCanvas: React.FC = () => {
           ))
         )}
 
-        {/* Player */}
+        {/* Player - Always visible and properly positioned */}
         <View
           style={[
             styles.player,
@@ -411,6 +418,7 @@ const GameCanvas: React.FC = () => {
                   scaleY: player.isDashing ? 0.7 : 1
                 }
               ],
+              zIndex: 100, // Ensure player is always on top
             }
           ]}
         />
@@ -457,6 +465,7 @@ const styles = StyleSheet.create({
   gameArea: {
     flex: 1,
     position: 'relative',
+    overflow: 'hidden', // Ensure particles don't render outside bounds
   },
   star: {
     position: 'absolute',
@@ -467,6 +476,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 50,
     shadowOffset: { width: 0, height: 0 },
+    elevation: 3, // Add elevation for Android
   },
   effectParticle: {
     position: 'absolute',
@@ -481,6 +491,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     borderWidth: 2,
     borderColor: '#00FFFF',
+    elevation: 10, // Ensure player is always visible on Android
   },
 });
 
