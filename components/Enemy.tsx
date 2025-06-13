@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { EnemyProps } from '@/types';
 
-export default function Enemy({ x, y }: EnemyProps) {
+export default function Enemy({ x, y, color = '#FF00FF' }: EnemyProps) {
   return (
     <View 
       style={[
@@ -10,6 +10,7 @@ export default function Enemy({ x, y }: EnemyProps) {
         {
           left: x,
           top: y,
+          backgroundColor: color,
         }
       ]} 
     />
@@ -21,7 +22,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    backgroundColor: '#FF00FF', // Vibrant magenta
-    borderRadius: 15, // Makes it a perfect circle
+    borderRadius: 15,
   },
 });

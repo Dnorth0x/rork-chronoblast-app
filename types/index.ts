@@ -7,4 +7,12 @@ export interface PlayerProps {
 export interface EnemyProps {
   x: number;
   y: number;
+  color?: string;
+}
+
+export interface EnemyObject {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
 }
