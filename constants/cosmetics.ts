@@ -1,0 +1,257 @@
+export interface CosmeticItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: 'player' | 'trail' | 'background' | 'particles';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  unlocked: boolean;
+  equipped: boolean;
+  preview?: string;
+  colors?: string[];
+  effect?: string;
+}
+
+export const COSMETIC_ITEMS: CosmeticItem[] = [
+  // Player Skins
+  {
+    id: 'player_classic',
+    name: 'Classic Cyan',
+    description: 'The original cyan glow',
+    price: 0,
+    category: 'player',
+    rarity: 'common',
+    unlocked: true,
+    equipped: true,
+    colors: ['#00FFFF', '#00CCCC', '#008B8B'],
+  },
+  {
+    id: 'player_fire',
+    name: 'Blazing Fire',
+    description: 'Burn bright with fiery energy',
+    price: 120,
+    category: 'player',
+    rarity: 'common',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FF4500', '#FF6347', '#FF8C00'],
+  },
+  {
+    id: 'player_nature',
+    name: 'Forest Spirit',
+    description: 'Channel the power of nature',
+    price: 150,
+    category: 'player',
+    rarity: 'common',
+    unlocked: false,
+    equipped: false,
+    colors: ['#32CD32', '#228B22', '#006400'],
+  },
+  {
+    id: 'player_ocean',
+    name: 'Deep Ocean',
+    description: 'Mysterious depths of the sea',
+    price: 180,
+    category: 'player',
+    rarity: 'common',
+    unlocked: false,
+    equipped: false,
+    colors: ['#1E90FF', '#4682B4', '#191970'],
+  },
+  {
+    id: 'player_royal',
+    name: 'Royal Purple',
+    description: 'Majestic and mysterious',
+    price: 250,
+    category: 'player',
+    rarity: 'rare',
+    unlocked: false,
+    equipped: false,
+    colors: ['#8A2BE2', '#9370DB', '#6A5ACD'],
+  },
+  {
+    id: 'player_sunset',
+    name: 'Sunset Glow',
+    description: 'Warm colors of twilight',
+    price: 280,
+    category: 'player',
+    rarity: 'rare',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FF69B4', '#FF1493', '#DC143C'],
+  },
+  {
+    id: 'player_gold',
+    name: 'Golden Radiance',
+    description: 'Shine like precious metal',
+    price: 400,
+    category: 'player',
+    rarity: 'epic',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FFD700', '#FFA500', '#FF8C00'],
+  },
+  {
+    id: 'player_ice',
+    name: 'Frozen Crystal',
+    description: 'Cold as winter, beautiful as ice',
+    price: 450,
+    category: 'player',
+    rarity: 'epic',
+    unlocked: false,
+    equipped: false,
+    colors: ['#B0E0E6', '#87CEEB', '#4682B4'],
+  },
+  {
+    id: 'player_rainbow',
+    name: 'Prismatic Orb',
+    description: 'All colors of the spectrum',
+    price: 800,
+    category: 'player',
+    rarity: 'legendary',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'],
+    effect: 'rainbow',
+  },
+  {
+    id: 'player_void',
+    name: 'Void Walker',
+    description: 'Darkness incarnate with purple edges',
+    price: 1000,
+    category: 'player',
+    rarity: 'legendary',
+    unlocked: false,
+    equipped: false,
+    colors: ['#2E0854', '#4B0082', '#8A2BE2'],
+    effect: 'void',
+  },
+
+  // Trails
+  {
+    id: 'trail_none',
+    name: 'No Trail',
+    description: 'Clean and simple',
+    price: 0,
+    category: 'trail',
+    rarity: 'common',
+    unlocked: true,
+    equipped: true,
+  },
+  {
+    id: 'trail_sparkle',
+    name: 'Sparkle Trail',
+    description: 'Leave sparkling particles behind',
+    price: 80,
+    category: 'trail',
+    rarity: 'common',
+    unlocked: false,
+    equipped: false,
+    effect: 'sparkle',
+  },
+  {
+    id: 'trail_comet',
+    name: 'Comet Tail',
+    description: 'Blazing trail like a comet',
+    price: 200,
+    category: 'trail',
+    rarity: 'rare',
+    unlocked: false,
+    equipped: false,
+    effect: 'comet',
+  },
+  {
+    id: 'trail_lightning',
+    name: 'Lightning Trail',
+    description: 'Electric energy crackling behind you',
+    price: 350,
+    category: 'trail',
+    rarity: 'epic',
+    unlocked: false,
+    equipped: false,
+    effect: 'lightning',
+  },
+  {
+    id: 'trail_galaxy',
+    name: 'Galaxy Stream',
+    description: 'Leave a trail of stars and cosmic dust',
+    price: 600,
+    category: 'trail',
+    rarity: 'legendary',
+    unlocked: false,
+    equipped: false,
+    effect: 'galaxy',
+  },
+
+  // Backgrounds
+  {
+    id: 'bg_space',
+    name: 'Deep Space',
+    description: 'Classic starfield background',
+    price: 0,
+    category: 'background',
+    rarity: 'common',
+    unlocked: true,
+    equipped: true,
+  },
+  {
+    id: 'bg_nebula',
+    name: 'Cosmic Nebula',
+    description: 'Swirling cosmic clouds',
+    price: 250,
+    category: 'background',
+    rarity: 'rare',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FF1493', '#8A2BE2', '#4169E1'],
+  },
+  {
+    id: 'bg_matrix',
+    name: 'Digital Matrix',
+    description: 'Green code rain effect',
+    price: 300,
+    category: 'background',
+    rarity: 'rare',
+    unlocked: false,
+    equipped: false,
+    colors: ['#00FF00', '#008000', '#006400'],
+  },
+  {
+    id: 'bg_aurora',
+    name: 'Aurora Borealis',
+    description: 'Dancing northern lights',
+    price: 500,
+    category: 'background',
+    rarity: 'epic',
+    unlocked: false,
+    equipped: false,
+    colors: ['#00FFFF', '#00FF7F', '#ADFF2F', '#FF69B4'],
+  },
+  {
+    id: 'bg_cyberpunk',
+    name: 'Cyberpunk City',
+    description: 'Neon-lit futuristic cityscape',
+    price: 750,
+    category: 'background',
+    rarity: 'legendary',
+    unlocked: false,
+    equipped: false,
+    colors: ['#FF00FF', '#00FFFF', '#FFFF00'],
+  },
+];
+
+export const RARITY_COLORS = {
+  common: '#CCCCCC',
+  rare: '#4169E1',
+  epic: '#8A2BE2',
+  legendary: '#FFD700',
+};
+
+export const CC_REWARDS = {
+  BASE_GAME_REWARD: 8,
+  SCORE_MULTIPLIER: 0.008, // Slightly reduced for better balance
+  COMBO_BONUS: 4, // Per combo level
+  HIGH_SCORE_BONUS: 40,
+  DAILY_LOGIN: 20,
+  PERFECT_GAME_BONUS: 25, // For games with high combo streaks
+};
