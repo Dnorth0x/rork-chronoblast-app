@@ -3,6 +3,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { soundManager } from "@/utils/SoundManager";
 
 export const unstable_settings = {
   initialRouteName: "index",
@@ -13,7 +14,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
-    'SpaceFont': require('../assets/fonts/space_font.ttf'),
+    'space_font': require('../assets/fonts/space_font.ttf'),
   });
 
   useEffect(() => {
@@ -26,6 +27,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+      // Initialize sound manager when fonts are loaded
+      soundManager.init();
     }
   }, [loaded]);
 

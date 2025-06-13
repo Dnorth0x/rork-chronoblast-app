@@ -72,7 +72,7 @@ export default function ShopScreen() {
 
       {/* Category Tabs */}
       <View style={styles.categoryTabs}>
-        {Object.entries(upgradeCategories).map(([key, category]) => (
+        {(Object.entries(upgradeCategories) as [UpgradeCategory, typeof upgradeCategories[UpgradeCategory]][]).map(([key, category]) => (
           <TouchableOpacity
             key={key}
             style={[
@@ -80,7 +80,7 @@ export default function ShopScreen() {
               selectedCategory === key && styles.categoryTabActive,
               { borderColor: category.color }
             ]}
-            onPress={() => setSelectedCategory(key as UpgradeCategory)}
+            onPress={() => setSelectedCategory(key)}
           >
             <Text style={[
               styles.categoryTabText,

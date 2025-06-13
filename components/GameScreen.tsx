@@ -11,6 +11,7 @@ import { enemyData, enemyTypes } from '@/game/enemyData';
 import { weaponData } from '@/game/weaponData';
 import { useUpgradeStore } from '@/stores/upgradeStore';
 import { getUpgradeValue } from '@/game/upgradeData';
+import { soundManager } from '@/utils/SoundManager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -101,10 +102,40 @@ export default function GameScreen() {
   const xpOrbIdCounter = useRef(0);
   const shardIdCounter = useRef(0);
 
+  // Sound tracking refs
+  const lastPlayerLevel = useRef(1);
+  const gameStartSoundPlayed = useRef(false);
+
   // Calculate movement speed with upgrades
   const baseMovementSpeed = 0.8;
   const speedMultiplier = 1 + getUpgradeValue('player_speed', getUpgradeLevel('player_speed'));
   const movementSpeed = baseMovementSpeed * speedMultiplier;
+
+  // Initialize sound manager
+  useEffect(() => {
+    soundManager.init();
+    
+    // Play game start sound once
+    if (!gameStartSoundPlayed.current) {
+      soundManager.playSystemSound('game_start');
+      gameStartSoundPlayed.current = true;
+    }
+  }, []);
+
+  // Level up sound effect
+  useEffect(() => {
+    if (playerStats.level > lastPlayerLevel.current) {
+      soundManager.playSystemSound('level_up');
+      lastPlayerLevel.current = playerStats.level;
+    }
+  }, [playerStats.level]);
+
+  // Game over sound effect
+  useEffect(() => {
+    if (isGameOver) {
+      soundManager.playSystemSound('game_over');
+    }
+  }, [isGameOver]);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -136,24 +167,26 @@ export default function GameScreen() {
 
   // Screen shake animation function
   const triggerScreenShake = () => {
+    soundManager.play('screen_shake', 0.6);
+    
     const shakeSequence = Animated.sequence([
       Animated.timing(shakeAnimation, {
-        toValue: { x: -8, y: -4 },
+        toValue: { x: -10, y: -5 },
         duration: 50,
         useNativeDriver: false,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: { x: 8, y: 4 },
+        toValue: { x: 10, y: 5 },
         duration: 50,
         useNativeDriver: false,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: { x: -6, y: -2 },
+        toValue: { x: -8, y: -3 },
         duration: 50,
         useNativeDriver: false,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: { x: 6, y: 2 },
+        toValue: { x: 8, y: 3 },
         duration: 50,
         useNativeDriver: false,
       }),
@@ -283,6 +316,9 @@ export default function GameScreen() {
     };
     
     setProjectiles(prevProjectiles => [...prevProjectiles, newProjectile]);
+    
+    // Play weapon fire sound
+    soundManager.playGameSound('weapon_fire');
   };
 
   // Function to spawn XP orb
@@ -369,11 +405,17 @@ export default function GameScreen() {
         if (distance < projectileRadius + enemyRadius) {
           hitProjectileIds.push(projectile.id);
           
+          // Play enemy hit sound
+          soundManager.playGameSound('enemy_hit');
+          
           // Damage enemy
           const updatedEnemy = { ...enemy, health: enemy.health - projectile.damage };
           
           if (updatedEnemy.health <= 0) {
             hitEnemyIds.push(enemy.id);
+            
+            // Play enemy death sound
+            soundManager.playGameSound('enemy_death');
             
             // Spawn XP orb where enemy died
             const baseXpValue = enemy.type === 'brute' ? 15 : 10;
@@ -455,6 +497,9 @@ export default function GameScreen() {
     });
 
     if (collectedOrbIds.length > 0) {
+      // Play XP pickup sound
+      soundManager.playPickupSound('pickup_xp');
+      
       // Remove collected orbs
       setXpOrbs(prevOrbs => 
         prevOrbs.filter(orb => !collectedOrbIds.includes(orb.id))
@@ -496,6 +541,9 @@ export default function GameScreen() {
     });
 
     if (collectedShardIds.length > 0) {
+      // Play shard pickup sound
+      soundManager.playPickupSound('pickup_shard');
+      
       // Remove collected shards
       setChronoShards(prevShards => 
         prevShards.filter(shard => !collectedShardIds.includes(shard.id))
@@ -566,6 +614,11 @@ export default function GameScreen() {
       setTimeElapsed(prevTime => {
         const newTime = prevTime + 1;
         
+        // Play time warning at 30 seconds
+        if (newTime === 30) {
+          soundManager.play('time_warning', 0.8);
+        }
+        
         // Every 10 seconds, increase difficulty by decreasing spawn rate by 10%
         if (newTime % 10 === 0) {
           setSpawnRate(prevRate => {
@@ -623,8 +676,14 @@ export default function GameScreen() {
         const collidedEnemyIds = checkPlayerEnemyCollisions(updatedEnemies);
         
         if (collidedEnemyIds.length > 0 && !isPlayerInvincible) {
+          // Play player hit sound and trigger screen shake
+          soundManager.playGameSound('player_hit');
           triggerScreenShake();
+          
           setIsPlayerInvincible(true);
+          
+          // Play invincibility sound
+          soundManager.play('invincibility', 0.4);
           
           // Apply invincibility duration upgrade
           const baseDuration = 1000;
