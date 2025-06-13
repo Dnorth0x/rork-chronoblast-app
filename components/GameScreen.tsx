@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, PanResponder, Dimensions, Text, Animated } from 'react-native';
 import Player from './Player';
 import Enemy from './Enemy';
+import HUD from './HUD';
 import { EnemyObject } from '@/types';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -363,15 +364,12 @@ export default function GameScreen() {
         />
       ))}
       
-      {/* Game stats display */}
-      <View style={styles.statsContainer}>
-        <Text style={[styles.healthText, isPlayerInvincible && styles.invincibleText]}>
-          Health: {playerHealth} {isPlayerInvincible ? '(INVINCIBLE)' : ''}
-        </Text>
-        <Text style={styles.timeText}>Time: {timeElapsed}s</Text>
-        <Text style={styles.enemyText}>Enemies: {enemies.length}</Text>
-        <Text style={styles.difficultyText}>Spawn Rate: {spawnRate}ms</Text>
-      </View>
+      {/* HUD Component */}
+      <HUD 
+        score={timeElapsed}
+        health={playerHealth}
+        isPlayerInvincible={isPlayerInvincible}
+      />
 
       {/* Game Over overlay */}
       {isGameOver && (
@@ -389,42 +387,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1C1C1E',
-  },
-  statsContainer: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 150,
-  },
-  healthText: {
-    color: '#00FFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  invincibleText: {
-    color: '#FFD700',
-  },
-  timeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  enemyText: {
-    color: '#FF00FF',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  difficultyText: {
-    color: '#FFEAA7',
-    fontSize: 12,
-    fontWeight: '400',
   },
   gameOverOverlay: {
     position: 'absolute',
