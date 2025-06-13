@@ -2,7 +2,9 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { EnemyProps } from '@/types';
 
-export default function Enemy({ x, y, color = '#FF00FF' }: EnemyProps) {
+export default function Enemy({ x, y, color = '#FF00FF', size = 30 }: EnemyProps) {
+  const radius = size / 2;
+  
   return (
     <View 
       style={[
@@ -11,6 +13,9 @@ export default function Enemy({ x, y, color = '#FF00FF' }: EnemyProps) {
           left: x,
           top: y,
           backgroundColor: color,
+          width: size,
+          height: size,
+          borderRadius: radius,
         }
       ]} 
     />
@@ -20,8 +25,5 @@ export default function Enemy({ x, y, color = '#FF00FF' }: EnemyProps) {
 const styles = StyleSheet.create({
   enemy: {
     position: 'absolute',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
   },
 });

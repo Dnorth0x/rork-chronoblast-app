@@ -4,6 +4,7 @@ import Player from './Player';
 import Enemy from './Enemy';
 import HUD from './HUD';
 import { EnemyObject } from '@/types';
+import { enemyData, enemyTypes } from '@/game/enemyData';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -102,9 +103,8 @@ export default function GameScreen() {
   };
 
   // Function to generate random off-screen position
-  const generateOffScreenPosition = () => {
+  const generateOffScreenPosition = (enemySize: number) => {
     const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
-    const enemySize = 30; // Enemy diameter
     
     switch (side) {
       case 0: // Top
@@ -136,15 +136,21 @@ export default function GameScreen() {
   const spawnEnemy = () => {
     if (isGameOver) return;
     
-    const position = generateOffScreenPosition();
-    const colors = ['#FF00FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    // Randomly select enemy type
+    const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+    const enemyConfig = enemyData[randomType];
+    
+    const position = generateOffScreenPosition(enemyConfig.size);
     
     const newEnemy: EnemyObject = {
       id: `enemy-${enemyIdCounter.current++}`,
       x: position.x,
       y: position.y,
-      color: randomColor,
+      color: enemyConfig.color,
+      type: randomType,
+      health: enemyConfig.health,
+      speed: enemyConfig.speed,
+      size: enemyConfig.size,
     };
 
     setEnemies(prevEnemies => [...prevEnemies, newEnemy]);
@@ -155,14 +161,14 @@ export default function GameScreen() {
     const playerCenterX = positionRef.current.x + 20; // Player radius is 20
     const playerCenterY = positionRef.current.y + 20;
     const playerRadius = 20;
-    const enemyRadius = 15;
-    const collisionDistance = playerRadius + enemyRadius;
 
     const collidedEnemyIds: string[] = [];
 
     enemiesArray.forEach(enemy => {
-      const enemyCenterX = enemy.x + 15; // Enemy radius is 15
-      const enemyCenterY = enemy.y + 15;
+      const enemyRadius = enemy.size / 2;
+      const enemyCenterX = enemy.x + enemyRadius;
+      const enemyCenterY = enemy.y + enemyRadius;
+      const collisionDistance = playerRadius + enemyRadius;
       
       const distance = Math.sqrt(
         Math.pow(playerCenterX - enemyCenterX, 2) + 
@@ -245,18 +251,18 @@ export default function GameScreen() {
       setEnemies(prevEnemies => {
         // Move enemies towards player using current position from ref
         const updatedEnemies = prevEnemies.map(enemy => {
+          const enemyRadius = enemy.size / 2;
           // Calculate direction to player using ref position
-          const dx = (positionRef.current.x + 20) - (enemy.x + 15); // Center to center
-          const dy = (positionRef.current.y + 20) - (enemy.y + 15);
+          const dx = (positionRef.current.x + 20) - (enemy.x + enemyRadius); // Center to center
+          const dy = (positionRef.current.y + 20) - (enemy.y + enemyRadius);
           
           // Calculate distance
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // Normalize direction and apply movement speed
+          // Normalize direction and apply movement speed (using individual enemy speed)
           if (distance > 0) {
-            const moveSpeed = 1.5; // Pixels per frame
-            const normalizedDx = (dx / distance) * moveSpeed;
-            const normalizedDy = (dy / distance) * moveSpeed;
+            const normalizedDx = (dx / distance) * enemy.speed;
+            const normalizedDy = (dy / distance) * enemy.speed;
             
             return {
               ...enemy,
@@ -288,7 +294,7 @@ export default function GameScreen() {
             setIsPlayerInvincible(false);
           }, 1000);
           
-          // Decrease health and remove collided enemies
+          // Decrease health
           setPlayerHealth(prevHealth => {
             const newHealth = prevHealth - collidedEnemyIds.length;
             if (newHealth <= 0) {
@@ -297,8 +303,17 @@ export default function GameScreen() {
             return Math.max(0, newHealth);
           });
 
-          // Remove collided enemies
-          return updatedEnemies.filter(enemy => !collidedEnemyIds.includes(enemy.id));
+          // Reduce enemy health instead of removing them immediately
+          return updatedEnemies.map(enemy => {
+            if (collidedEnemyIds.includes(enemy.id)) {
+              const newHealth = enemy.health - 1;
+              return {
+                ...enemy,
+                health: newHealth,
+              };
+            }
+            return enemy;
+          }).filter(enemy => enemy.health > 0); // Only remove enemies with 0 health
         }
 
         return updatedEnemies;
@@ -361,6 +376,7 @@ export default function GameScreen() {
           x={enemy.x} 
           y={enemy.y} 
           color={enemy.color}
+          size={enemy.size}
         />
       ))}
       
