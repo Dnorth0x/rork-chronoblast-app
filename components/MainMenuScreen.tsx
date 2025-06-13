@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Platform, Animated, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Gamepad2, Trophy, Gem, Volume2, VolumeX } from 'lucide-react-native';
+import { Gamepad2, Trophy, Gem, Volume2, VolumeX, Settings } from 'lucide-react-native';
 import { useUpgradeStore } from '@/stores/upgradeStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { soundManager } from '@/utils/SoundManager';
@@ -165,18 +165,30 @@ export default function MainMenuScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Sound Toggle Button */}
-        <TouchableOpacity 
-          style={styles.soundToggle}
-          onPress={toggleSound}
-          activeOpacity={0.8}
-        >
-          {soundEnabled ? (
-            <Volume2 size={24} color="#00FFFF" />
-          ) : (
-            <VolumeX size={24} color="#666" />
-          )}
-        </TouchableOpacity>
+        {/* Top Controls */}
+        <View style={styles.topControls}>
+          {/* Sound Toggle Button */}
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={toggleSound}
+            activeOpacity={0.8}
+          >
+            {soundEnabled ? (
+              <Volume2 size={24} color="#00FFFF" />
+            ) : (
+              <VolumeX size={24} color="#666" />
+            )}
+          </TouchableOpacity>
+
+          {/* Settings Button */}
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={() => handleButtonPress(() => router.push('/(tabs)/settings'), 'menu_open')}
+            activeOpacity={0.8}
+          >
+            <Settings size={24} color="#00FFFF" />
+          </TouchableOpacity>
+        </View>
 
         {/* Animated Header */}
         <Animated.View 
@@ -333,16 +345,20 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 1,
   },
-  soundToggle: {
+  topControls: {
     position: 'absolute',
     top: -40,
     right: 0,
+    flexDirection: 'row',
+    gap: 12,
+    zIndex: 10,
+  },
+  controlButton: {
     backgroundColor: 'rgba(0, 255, 255, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(0, 255, 255, 0.4)',
     borderRadius: 12,
     padding: 12,
-    zIndex: 10,
   },
   header: {
     alignItems: 'center',
