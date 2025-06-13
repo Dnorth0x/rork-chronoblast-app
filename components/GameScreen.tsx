@@ -24,8 +24,8 @@ export default function GameScreen() {
     y: screenHeight / 2 - 20,
   });
   
-  const playerRef = useRef<View>(null);
-  const containerRef = useRef<View>(null);
+  const playerRef = useRef<Animated.View>(null);
+  const containerRef = useRef<Animated.View>(null);
   const shakeAnimation = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   // Timer refs
