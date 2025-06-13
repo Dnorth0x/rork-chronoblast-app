@@ -1,10 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-
-interface EnemyProps {
-  x: number;
-  y: number;
-}
+import { EnemyProps } from '@/types';
 
 export default function Enemy({ x, y }: EnemyProps) {
   return (

@@ -1,11 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-
-interface PlayerProps {
-  x: number;
-  y: number;
-  color: string;
-}
+import { PlayerProps } from '@/types';
 
 export default function Player({ x, y, color }: PlayerProps) {
   return (
