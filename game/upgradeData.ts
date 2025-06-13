@@ -1,3 +1,5 @@
+export type UpgradeCategory = 'combat' | 'survival' | 'utility';
+
 export interface UpgradeConfig {
   id: string;
   label: string;
@@ -6,7 +8,7 @@ export interface UpgradeConfig {
   baseCost: number;
   costMultiplier: number;
   icon: string;
-  category: 'combat' | 'survival' | 'utility';
+  category: UpgradeCategory;
 }
 
 export const upgradeData: Record<string, UpgradeConfig> = {
@@ -72,7 +74,7 @@ export const upgradeData: Record<string, UpgradeConfig> = {
   },
 };
 
-export const upgradeCategories = {
+export const upgradeCategories: Record<UpgradeCategory, { label: string; color: string; description: string }> = {
   combat: {
     label: 'Combat',
     color: '#FF6B6B',

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Gem, Heart, Zap, Target, Clock, TrendingUp, Shield } from 'lucide-react-native';
 import { useUpgradeStore } from '@/stores/upgradeStore';
-import { upgradeData, upgradeCategories, getUpgradeCost, getUpgradeValue } from '@/game/upgradeData';
+import { upgradeData, upgradeCategories, getUpgradeCost, getUpgradeValue, type UpgradeCategory } from '@/game/upgradeData';
 
 const iconMap = {
   heart: Heart,
@@ -24,7 +24,7 @@ export default function ShopScreen() {
     totalShardsSpent 
   } = useUpgradeStore();
   
-  const [selectedCategory, setSelectedCategory] = useState<string>('combat');
+  const [selectedCategory, setSelectedCategory] = useState<UpgradeCategory>('combat');
 
   const handlePurchaseUpgrade = (upgradeId: string) => {
     const upgrade = upgradeData[upgradeId];
@@ -80,7 +80,7 @@ export default function ShopScreen() {
               selectedCategory === key && styles.categoryTabActive,
               { borderColor: category.color }
             ]}
-            onPress={() => setSelectedCategory(key)}
+            onPress={() => setSelectedCategory(key as UpgradeCategory)}
           >
             <Text style={[
               styles.categoryTabText,
