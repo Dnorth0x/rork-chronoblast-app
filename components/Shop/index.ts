@@ -1,1 +1,3 @@
-export { default } from './CosmeticShop';
+import CosmeticShop from './CosmeticShop';
+
+export default CosmeticShop;
