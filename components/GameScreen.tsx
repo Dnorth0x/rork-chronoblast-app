@@ -12,18 +12,16 @@ export default function GameScreen() {
     y: screenHeight / 2 - 20, // Center vertically (minus half player height)
   });
 
-  const [enemies, setEnemies] = useState<EnemyObject[]>([
-    {
-      id: 'enemy-1',
-      x: 100,
-      y: 100,
-      color: '#FF00FF'
-    }
-  ]);
-
+  const [enemies, setEnemies] = useState<EnemyObject[]>([]);
   const [playerHealth, setPlayerHealth] = useState(100);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [spawnRate, setSpawnRate] = useState(2000); // milliseconds
+  const [timeElapsed, setTimeElapsed] = useState(0); // seconds
+
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
+  const spawnerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const enemyIdCounter = useRef(0);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -41,6 +39,55 @@ export default function GameScreen() {
       });
     },
   });
+
+  // Function to generate random off-screen position
+  const generateOffScreenPosition = () => {
+    const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+    const enemySize = 30; // Enemy diameter
+    
+    switch (side) {
+      case 0: // Top
+        return {
+          x: Math.random() * screenWidth,
+          y: -enemySize,
+        };
+      case 1: // Right
+        return {
+          x: screenWidth + enemySize,
+          y: Math.random() * screenHeight,
+        };
+      case 2: // Bottom
+        return {
+          x: Math.random() * screenWidth,
+          y: screenHeight + enemySize,
+        };
+      case 3: // Left
+        return {
+          x: -enemySize,
+          y: Math.random() * screenHeight,
+        };
+      default:
+        return { x: -enemySize, y: -enemySize };
+    }
+  };
+
+  // Function to spawn a new enemy
+  const spawnEnemy = () => {
+    if (isGameOver) return;
+    
+    const position = generateOffScreenPosition();
+    const colors = ['#FF00FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    const newEnemy: EnemyObject = {
+      id: `enemy-${enemyIdCounter.current++}`,
+      x: position.x,
+      y: position.y,
+      color: randomColor,
+    };
+
+    setEnemies(prevEnemies => [...prevEnemies, newEnemy]);
+  };
 
   // Collision detection function
   const checkCollisions = (playerPos: { x: number; y: number }, enemiesArray: EnemyObject[]) => {
@@ -69,6 +116,62 @@ export default function GameScreen() {
     return collidedEnemyIds;
   };
 
+  // Enemy spawner loop
+  useEffect(() => {
+    if (isGameOver) {
+      if (spawnerRef.current) {
+        clearInterval(spawnerRef.current);
+        spawnerRef.current = null;
+      }
+      return;
+    }
+
+    spawnerRef.current = setInterval(() => {
+      spawnEnemy();
+    }, spawnRate);
+
+    return () => {
+      if (spawnerRef.current) {
+        clearInterval(spawnerRef.current);
+        spawnerRef.current = null;
+      }
+    };
+  }, [spawnRate, isGameOver]);
+
+  // Timer for elapsed time and difficulty scaling
+  useEffect(() => {
+    if (isGameOver) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    timerRef.current = setInterval(() => {
+      setTimeElapsed(prevTime => {
+        const newTime = prevTime + 1;
+        
+        // Every 10 seconds, increase difficulty by decreasing spawn rate by 10%
+        if (newTime % 10 === 0) {
+          setSpawnRate(prevRate => {
+            const newRate = Math.floor(prevRate * 0.9);
+            return Math.max(500, newRate); // Minimum spawn rate of 500ms
+          });
+        }
+        
+        return newTime;
+      });
+    }, 1000); // Run every second
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isGameOver]);
+
   // Game loop for enemy movement and collision detection
   useEffect(() => {
     if (isGameOver) {
@@ -92,7 +195,7 @@ export default function GameScreen() {
           
           // Normalize direction and apply movement speed
           if (distance > 0) {
-            const moveSpeed = 1; // Pixels per frame
+            const moveSpeed = 1.5; // Pixels per frame
             const normalizedDx = (dx / distance) * moveSpeed;
             const normalizedDy = (dy / distance) * moveSpeed;
             
@@ -135,11 +238,17 @@ export default function GameScreen() {
     };
   }, [playerPosition, isGameOver]);
 
-  // Clean up game loop on unmount
+  // Clean up all timers on unmount
   useEffect(() => {
     return () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
+      }
+      if (spawnerRef.current) {
+        clearInterval(spawnerRef.current);
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -156,16 +265,20 @@ export default function GameScreen() {
         />
       ))}
       
-      {/* Health display */}
-      <View style={styles.healthContainer}>
+      {/* Game stats display */}
+      <View style={styles.statsContainer}>
         <Text style={styles.healthText}>Health: {playerHealth}</Text>
+        <Text style={styles.timeText}>Time: {timeElapsed}s</Text>
+        <Text style={styles.enemyText}>Enemies: {enemies.length}</Text>
+        <Text style={styles.difficultyText}>Spawn Rate: {spawnRate}ms</Text>
       </View>
 
       {/* Game Over overlay */}
       {isGameOver && (
         <View style={styles.gameOverOverlay}>
           <Text style={styles.gameOverText}>Game Over</Text>
-          <Text style={styles.gameOverSubtext}>Your health reached zero!</Text>
+          <Text style={styles.gameOverSubtext}>You survived {timeElapsed} seconds!</Text>
+          <Text style={styles.gameOverStats}>Final Score: {timeElapsed * 10} points</Text>
         </View>
       )}
     </View>
@@ -177,19 +290,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1C1C1E',
   },
-  healthContainer: {
+  statsContainer: {
     position: 'absolute',
     top: 60,
     left: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    minWidth: 150,
   },
   healthText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#00FFFF',
+    fontSize: 14,
     fontWeight: '600',
+    marginBottom: 2,
+  },
+  timeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  enemyText: {
+    color: '#FF00FF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  difficultyText: {
+    color: '#FFEAA7',
+    fontSize: 12,
+    fontWeight: '400',
   },
   gameOverOverlay: {
     position: 'absolute',
@@ -197,7 +329,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -210,6 +342,13 @@ const styles = StyleSheet.create({
   gameOverSubtext: {
     color: '#CCCCCC',
     fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gameOverStats: {
+    color: '#00FFFF',
+    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });
