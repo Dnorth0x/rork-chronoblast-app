@@ -3,6 +3,84 @@ import { StyleSheet, View, PanResponder, Dimensions, Platform, Text, Animated } 
 import { useGameStore } from '@/stores/gameStore';
 import { useCosmeticsStore } from '@/stores/cosmeticsStore';
 import { GAME_CONFIG } from '@/constants/gameConfig';
+import { Audio } from 'expo-av';
+
+// Sound Manager for Game Events
+class GameSoundManager {
+  private sounds: { [key: string]: Audio.Sound } = {};
+  private initialized = false;
+
+  async init() {
+    if (Platform.OS === 'web' || this.initialized) return;
+    
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      this.initialized = true;
+    } catch (error) {
+      console.log('Game sound initialization failed:', error);
+    }
+  }
+
+  async play(soundName: string, volume: number = 0.5) {
+    if (Platform.OS === 'web' || !this.initialized) return;
+    
+    try {
+      // Create different sound patterns for different events
+      let frequency = 440;
+      let duration = 200;
+      
+      switch (soundName) {
+        case 'particle_collect':
+          frequency = 800;
+          duration = 150;
+          break;
+        case 'power_up':
+          frequency = 1200;
+          duration = 300;
+          break;
+        case 'dash':
+          frequency = 600;
+          duration = 100;
+          break;
+        case 'combo':
+          frequency = 1000;
+          duration = 250;
+          break;
+        case 'game_over':
+          frequency = 300;
+          duration = 500;
+          break;
+        case 'time_warning':
+          frequency = 400;
+          duration = 200;
+          break;
+      }
+      
+      // Simple beep sound generation (in a real app, you'd use actual sound files)
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: `data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT` },
+        { shouldPlay: false, volume }
+      );
+      
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('Game sound play failed:', error);
+    }
+  }
+}
+
+const gameSoundManager = new GameSoundManager();
 
 const GameCanvas: React.FC = () => {
   const {
@@ -16,6 +94,9 @@ const GameCanvas: React.FC = () => {
     canvasWidth,
     canvasHeight,
     performanceMode,
+    score,
+    timeLeft,
+    currentCombo,
     setCanvasSize,
     updatePlayerPosition,
     updateGame,
@@ -36,6 +117,63 @@ const GameCanvas: React.FC = () => {
   const lastPlayerUpdateTime = useRef<number>(0);
   const frameSkipCounter = useRef<number>(0);
   const collisionCheckCounter = useRef<number>(0);
+  
+  // Sound tracking refs
+  const lastScore = useRef<number>(0);
+  const lastCombo = useRef<number>(0);
+  const lastTimeLeft = useRef<number>(0);
+  const timeWarningPlayed = useRef<boolean>(false);
+
+  // Initialize sound manager
+  useEffect(() => {
+    gameSoundManager.init();
+  }, []);
+
+  // Sound effect triggers
+  useEffect(() => {
+    // Score increase (particle collection)
+    if (score > lastScore.current && gameActive && !isPaused) {
+      gameSoundManager.play('particle_collect', 0.3);
+      lastScore.current = score;
+    }
+  }, [score, gameActive, isPaused]);
+
+  useEffect(() => {
+    // Combo sound
+    if (currentCombo > lastCombo.current && currentCombo > 1 && gameActive && !isPaused) {
+      gameSoundManager.play('combo', 0.4);
+      lastCombo.current = currentCombo;
+    }
+  }, [currentCombo, gameActive, isPaused]);
+
+  useEffect(() => {
+    // Time warning
+    if (timeLeft <= GAME_CONFIG.TIME_LOW_THRESHOLD && timeLeft > 0 && !timeWarningPlayed.current && gameActive && !isPaused) {
+      gameSoundManager.play('time_warning', 0.6);
+      timeWarningPlayed.current = true;
+    }
+    
+    // Reset time warning when game restarts
+    if (timeLeft > GAME_CONFIG.TIME_LOW_THRESHOLD) {
+      timeWarningPlayed.current = false;
+    }
+    
+    lastTimeLeft.current = timeLeft;
+  }, [timeLeft, gameActive, isPaused]);
+
+  useEffect(() => {
+    // Game over sound
+    if (!gameActive && !isPaused && !gameStarting && score > 0) {
+      gameSoundManager.play('game_over', 0.5);
+    }
+  }, [gameActive, isPaused, gameStarting, score]);
+
+  // Dash sound effect
+  useEffect(() => {
+    if (player.isDashing && gameActive && !isPaused) {
+      gameSoundManager.play('dash', 0.4);
+    }
+  }, [player.isDashing, gameActive, isPaused]);
 
   // Heavily throttle player position updates to improve performance
   const throttledUpdatePlayerPosition = useCallback((x: number, y: number) => {

@@ -1,9 +1,72 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { useGameStore } from '@/stores/gameStore';
 import Colors from '@/constants/colors';
 import { PT, GAME_CONFIG } from '@/constants/gameConfig';
 import { usePathname } from 'expo-router';
+import { Audio } from 'expo-av';
+
+// UI Sound Manager
+class UISoundManager {
+  private initialized = false;
+
+  async init() {
+    if (Platform.OS === 'web' || this.initialized) return;
+    
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      this.initialized = true;
+    } catch (error) {
+      console.log('UI sound initialization failed:', error);
+    }
+  }
+
+  async play(soundName: string) {
+    if (Platform.OS === 'web' || !this.initialized) return;
+    
+    try {
+      let frequency = 440;
+      let duration = 150;
+      
+      switch (soundName) {
+        case 'button_press':
+          frequency = 800;
+          duration = 100;
+          break;
+        case 'pause':
+          frequency = 600;
+          duration = 200;
+          break;
+        case 'dash_ready':
+          frequency = 1000;
+          duration = 100;
+          break;
+      }
+      
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT' },
+        { shouldPlay: false, volume: 0.3 }
+      );
+      
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('UI sound play failed:', error);
+    }
+  }
+}
+
+const uiSoundManager = new UISoundManager();
 
 const GameUI: React.FC = () => {
   const pathname = usePathname();
@@ -21,6 +84,11 @@ const GameUI: React.FC = () => {
     activePowerUps, 
     player 
   } = useGameStore();
+
+  // Initialize UI sound manager
+  React.useEffect(() => {
+    uiSoundManager.init();
+  }, []);
 
   // Only show GameUI on the main game screen (index route) - more specific check
   if (pathname !== '/' && !pathname.endsWith('/(tabs)') && !pathname.endsWith('/index')) {
@@ -42,6 +110,25 @@ const GameUI: React.FC = () => {
     const elapsed = Date.now() - player.lastDashStartTime;
     return Math.min(100, (elapsed / GAME_CONFIG.PLAYER_DASH_COOLDOWN) * 100);
   };
+
+  const handlePausePress = async () => {
+    await uiSoundManager.play('pause');
+    togglePause();
+  };
+
+  const handleDashPress = async () => {
+    if (player.dashReady) {
+      await uiSoundManager.play('button_press');
+      triggerDash();
+    }
+  };
+
+  // Play sound when dash becomes ready
+  React.useEffect(() => {
+    if (player.dashReady && gameActive && !isPaused) {
+      uiSoundManager.play('dash_ready');
+    }
+  }, [player.dashReady, gameActive, isPaused]);
 
   return (
     <View style={styles.container}>
@@ -66,7 +153,7 @@ const GameUI: React.FC = () => {
           </Text>
         </View>
         <View style={styles.uiElement}>
-          <TouchableOpacity onPress={togglePause} style={styles.pauseButton}>
+          <TouchableOpacity onPress={handlePausePress} style={styles.pauseButton}>
             <Text style={styles.buttonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
           </TouchableOpacity>
         </View>
@@ -113,7 +200,7 @@ const GameUI: React.FC = () => {
         </View>
       )}
 
-      {/* Dash Controls */}
+      {/* Enhanced Dash Controls */}
       <View style={styles.dashContainer}>
         <View style={styles.dashCooldownContainer}>
           <View 
@@ -125,14 +212,19 @@ const GameUI: React.FC = () => {
           />
         </View>
         <TouchableOpacity 
-          onPress={triggerDash} 
+          onPress={handleDashPress} 
           style={[
             styles.dashButton, 
-            !player.dashReady && styles.dashButtonDisabled
+            !player.dashReady && styles.dashButtonDisabled,
+            player.dashReady && styles.dashButtonReady
           ]} 
           disabled={!player.dashReady}
         >
-          <Text style={[styles.buttonText, !player.dashReady && styles.disabledButtonText]}>
+          <Text style={[
+            styles.buttonText, 
+            !player.dashReady && styles.disabledButtonText,
+            player.dashReady && styles.readyButtonText
+          ]}>
             {player.isDashing ? 'Dashing!' : 'Dash'}
           </Text>
         </TouchableOpacity>
@@ -155,17 +247,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 40, 0.9)',
+    backgroundColor: 'rgba(20, 20, 40, 0.95)',
     borderBottomWidth: 2,
-    borderBottomColor: 'rgba(0, 191, 255, 0.5)',
+    borderBottomColor: 'rgba(0, 191, 255, 0.6)',
     borderRadius: 20,
     padding: 12,
     flexWrap: 'wrap',
     gap: 8,
     shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   uiElement: {
     minWidth: 70,
@@ -188,15 +281,16 @@ const styles = StyleSheet.create({
   },
   pauseButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
-    shadowRadius: 5,
+    shadowRadius: 6,
+    elevation: 4,
   },
   buttonText: {
     color: '#1a1a2e',
@@ -206,17 +300,21 @@ const styles = StyleSheet.create({
   disabledButtonText: {
     color: '#666',
   },
+  readyButtonText: {
+    color: '#1a1a2e',
+    fontWeight: '700',
+  },
   comboContainer: {
     alignItems: 'center',
     marginTop: 10,
   },
   comboText: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#FFD700',
     textShadowColor: '#FFA500',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
   powerUpArea: {
     flexDirection: 'row',
@@ -226,12 +324,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   powerUpIndicator: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   powerUpText: {
     color: '#f0f0f0',
@@ -241,23 +343,30 @@ const styles = StyleSheet.create({
   scoreBoost: {
     backgroundColor: 'rgba(255,215,0,0.3)',
     borderColor: 'rgba(255,215,0,0.6)',
+    shadowColor: '#FFD700',
   },
   slowEnemy: {
     backgroundColor: 'rgba(135,206,250,0.3)',
     borderColor: 'rgba(135,206,250,0.6)',
+    shadowColor: '#87CEEB',
   },
   confusion: {
     backgroundColor: 'rgba(128,0,128,0.4)',
     borderColor: 'rgba(128,0,128,0.7)',
+    shadowColor: '#800080',
   },
   performanceIndicator: {
     position: 'absolute',
     top: 100,
     right: 15,
-    backgroundColor: 'rgba(255, 165, 0, 0.8)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    backgroundColor: 'rgba(255, 165, 0, 0.9)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   performanceText: {
     color: '#1a1a2e',
@@ -269,47 +378,60 @@ const styles = StyleSheet.create({
     bottom: 20,
     right: 20,
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   dashCooldownContainer: {
-    width: 80,
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderWidth: 1,
+    width: 90,
+    height: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderWidth: 2,
     borderColor: 'rgba(0, 191, 255, 0.6)',
-    borderRadius: 4,
+    borderRadius: 6,
     overflow: 'hidden',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   dashCooldownFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   dashReady: {
     backgroundColor: '#00FFFF',
     shadowColor: '#00FFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    shadowOpacity: 1,
+    shadowRadius: 6,
   },
   dashOnCooldown: {
     backgroundColor: '#FF6347',
   },
   dashButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    backgroundColor: '#555',
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    minWidth: 80,
+    minWidth: 90,
+    borderWidth: 2,
+    borderColor: 'rgba(0, 191, 255, 0.3)',
+    elevation: 4,
   },
   dashButtonDisabled: {
-    backgroundColor: '#555',
-    shadowOpacity: 0.3,
+    backgroundColor: '#444',
+    shadowOpacity: 0.2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dashButtonReady: {
+    backgroundColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOpacity: 0.8,
+    borderColor: Colors.light.tint,
   },
 });
 
