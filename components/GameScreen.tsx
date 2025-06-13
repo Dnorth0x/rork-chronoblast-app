@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, PanResponder, Dimensions } from 'react-native';
 import Player from './Player';
+import Enemy from './Enemy';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -28,6 +29,7 @@ export default function GameScreen() {
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       <Player x={playerPosition.x} y={playerPosition.y} />
+      <Enemy x={100} y={100} />
     </View>
   );
 }
