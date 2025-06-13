@@ -2,11 +2,41 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, PanResponder, Dimensions, Text, Animated } from 'react-native';
 import Player from './Player';
 import Enemy from './Enemy';
+import Projectile from './Projectile';
+import XPOrb from './XPOrb';
 import HUD from './HUD';
 import { EnemyObject } from '@/types';
 import { enemyData, enemyTypes } from '@/game/enemyData';
+import { weaponData } from '@/game/weaponData';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+interface ProjectileObject {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  damage: number;
+  size: number;
+  color: string;
+  range: number;
+  distanceTraveled: number;
+}
+
+interface XPOrbObject {
+  id: string;
+  x: number;
+  y: number;
+  value: number;
+  size: number;
+}
+
+interface PlayerStats {
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+}
 
 export default function GameScreen() {
   // Use refs for player position to avoid re-renders
@@ -29,7 +59,14 @@ export default function GameScreen() {
   });
 
   const [enemies, setEnemies] = useState<EnemyObject[]>([]);
+  const [projectiles, setProjectiles] = useState<ProjectileObject[]>([]);
+  const [xpOrbs, setXpOrbs] = useState<XPOrbObject[]>([]);
   const [playerHealth, setPlayerHealth] = useState(100);
+  const [playerStats, setPlayerStats] = useState<PlayerStats>({
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 100,
+  });
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPlayerInvincible, setIsPlayerInvincible] = useState(false);
   const [spawnRate, setSpawnRate] = useState(2000); // milliseconds
@@ -38,8 +75,11 @@ export default function GameScreen() {
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
   const spawnerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const weaponFireRef = useRef<NodeJS.Timeout | null>(null);
   const invincibilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const enemyIdCounter = useRef(0);
+  const projectileIdCounter = useRef(0);
+  const xpOrbIdCounter = useRef(0);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -156,9 +196,93 @@ export default function GameScreen() {
     setEnemies(prevEnemies => [...prevEnemies, newEnemy]);
   };
 
-  // Collision detection function - now uses positionRef instead of state
-  const checkCollisions = (enemiesArray: EnemyObject[]) => {
-    const playerCenterX = positionRef.current.x + 20; // Player radius is 20
+  // Function to find nearest enemy
+  const findNearestEnemy = () => {
+    if (enemies.length === 0) return null;
+    
+    const playerCenterX = positionRef.current.x + 20;
+    const playerCenterY = positionRef.current.y + 20;
+    
+    let nearestEnemy = enemies[0];
+    let nearestDistance = Math.hypot(
+      nearestEnemy.x + nearestEnemy.size / 2 - playerCenterX,
+      nearestEnemy.y + nearestEnemy.size / 2 - playerCenterY
+    );
+    
+    for (let i = 1; i < enemies.length; i++) {
+      const enemy = enemies[i];
+      const distance = Math.hypot(
+        enemy.x + enemy.size / 2 - playerCenterX,
+        enemy.y + enemy.size / 2 - playerCenterY
+      );
+      
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestEnemy = enemy;
+      }
+    }
+    
+    return nearestDistance <= weaponData.basic_orb.range ? nearestEnemy : null;
+  };
+
+  // Function to fire projectile
+  const fireProjectile = () => {
+    if (isGameOver) return;
+    
+    const nearestEnemy = findNearestEnemy();
+    if (!nearestEnemy) return;
+    
+    const weapon = weaponData.basic_orb;
+    const playerCenterX = positionRef.current.x + 20;
+    const playerCenterY = positionRef.current.y + 20;
+    const enemyCenterX = nearestEnemy.x + nearestEnemy.size / 2;
+    const enemyCenterY = nearestEnemy.y + nearestEnemy.size / 2;
+    
+    const angle = Math.atan2(enemyCenterY - playerCenterY, enemyCenterX - playerCenterX);
+    const vx = Math.cos(angle) * weapon.speed;
+    const vy = Math.sin(angle) * weapon.speed;
+    
+    const newProjectile: ProjectileObject = {
+      id: `projectile-${projectileIdCounter.current++}`,
+      x: playerCenterX,
+      y: playerCenterY,
+      vx,
+      vy,
+      damage: weapon.damage,
+      size: weapon.projectileSize,
+      color: weapon.color,
+      range: weapon.range,
+      distanceTraveled: 0,
+    };
+    
+    setProjectiles(prevProjectiles => [...prevProjectiles, newProjectile]);
+  };
+
+  // Function to spawn XP orb
+  const spawnXPOrb = (x: number, y: number, value: number) => {
+    const newXPOrb: XPOrbObject = {
+      id: `xp-${xpOrbIdCounter.current++}`,
+      x,
+      y,
+      value,
+      size: 12,
+    };
+    
+    setXpOrbs(prevOrbs => [...prevOrbs, newXPOrb]);
+  };
+
+  // Function to handle level up
+  const handleLevelUp = () => {
+    setPlayerStats(prevStats => ({
+      level: prevStats.level + 1,
+      xp: prevStats.xp - prevStats.xpToNextLevel,
+      xpToNextLevel: prevStats.xpToNextLevel + 50,
+    }));
+  };
+
+  // Collision detection function for player vs enemies
+  const checkPlayerEnemyCollisions = (enemiesArray: EnemyObject[]) => {
+    const playerCenterX = positionRef.current.x + 20;
     const playerCenterY = positionRef.current.y + 20;
     const playerRadius = 20;
 
@@ -182,6 +306,133 @@ export default function GameScreen() {
 
     return collidedEnemyIds;
   };
+
+  // Collision detection function for projectiles vs enemies
+  const checkProjectileEnemyCollisions = () => {
+    const hitProjectileIds: string[] = [];
+    const hitEnemyIds: string[] = [];
+    const newXPOrbs: XPOrbObject[] = [];
+
+    projectiles.forEach(projectile => {
+      enemies.forEach(enemy => {
+        const enemyRadius = enemy.size / 2;
+        const enemyCenterX = enemy.x + enemyRadius;
+        const enemyCenterY = enemy.y + enemyRadius;
+        const projectileRadius = projectile.size / 2;
+        
+        const distance = Math.hypot(
+          projectile.x - enemyCenterX,
+          projectile.y - enemyCenterY
+        );
+
+        if (distance < projectileRadius + enemyRadius) {
+          hitProjectileIds.push(projectile.id);
+          
+          // Damage enemy
+          const updatedEnemy = { ...enemy, health: enemy.health - projectile.damage };
+          
+          if (updatedEnemy.health <= 0) {
+            hitEnemyIds.push(enemy.id);
+            // Spawn XP orb where enemy died
+            const xpValue = enemy.type === 'brute' ? 15 : 10;
+            newXPOrbs.push({
+              id: `xp-${xpOrbIdCounter.current++}`,
+              x: enemyCenterX,
+              y: enemyCenterY,
+              value: xpValue,
+              size: 12,
+            });
+          } else {
+            // Update enemy health
+            setEnemies(prevEnemies => 
+              prevEnemies.map(e => e.id === enemy.id ? updatedEnemy : e)
+            );
+          }
+        }
+      });
+    });
+
+    // Remove hit projectiles
+    if (hitProjectileIds.length > 0) {
+      setProjectiles(prevProjectiles => 
+        prevProjectiles.filter(p => !hitProjectileIds.includes(p.id))
+      );
+    }
+
+    // Remove defeated enemies
+    if (hitEnemyIds.length > 0) {
+      setEnemies(prevEnemies => 
+        prevEnemies.filter(e => !hitEnemyIds.includes(e.id))
+      );
+    }
+
+    // Add new XP orbs
+    if (newXPOrbs.length > 0) {
+      setXpOrbs(prevOrbs => [...prevOrbs, ...newXPOrbs]);
+    }
+  };
+
+  // Collision detection function for player vs XP orbs
+  const checkPlayerXPCollisions = () => {
+    const playerCenterX = positionRef.current.x + 20;
+    const playerCenterY = positionRef.current.y + 20;
+    const playerRadius = 20;
+    const collectedOrbIds: string[] = [];
+    let totalXP = 0;
+
+    xpOrbs.forEach(orb => {
+      const distance = Math.hypot(
+        playerCenterX - orb.x,
+        playerCenterY - orb.y
+      );
+
+      if (distance < playerRadius + orb.size / 2) {
+        collectedOrbIds.push(orb.id);
+        totalXP += orb.value;
+      }
+    });
+
+    if (collectedOrbIds.length > 0) {
+      // Remove collected orbs
+      setXpOrbs(prevOrbs => 
+        prevOrbs.filter(orb => !collectedOrbIds.includes(orb.id))
+      );
+
+      // Add XP to player
+      setPlayerStats(prevStats => {
+        const newXP = prevStats.xp + totalXP;
+        if (newXP >= prevStats.xpToNextLevel) {
+          // Level up!
+          setTimeout(handleLevelUp, 0);
+        }
+        return {
+          ...prevStats,
+          xp: newXP,
+        };
+      });
+    }
+  };
+
+  // Weapon firing loop
+  useEffect(() => {
+    if (isGameOver) {
+      if (weaponFireRef.current) {
+        clearInterval(weaponFireRef.current);
+        weaponFireRef.current = null;
+      }
+      return;
+    }
+
+    const weaponFireId = setInterval(() => {
+      fireProjectile();
+    }, weaponData.basic_orb.fireRate);
+    
+    weaponFireRef.current = weaponFireId;
+
+    return () => {
+      clearInterval(weaponFireId);
+    };
+  }, [isGameOver, enemies]);
 
   // Enemy spawner loop
   useEffect(() => {
@@ -237,7 +488,7 @@ export default function GameScreen() {
     };
   }, [isGameOver]);
 
-  // Game loop for enemy movement and collision detection - now uses positionRef
+  // Game loop for movement and collision detection
   useEffect(() => {
     if (isGameOver) {
       if (gameLoopRef.current) {
@@ -248,18 +499,15 @@ export default function GameScreen() {
     }
 
     const gameLoopId = setInterval(() => {
+      // Move enemies towards player
       setEnemies(prevEnemies => {
-        // Move enemies towards player using current position from ref
         const updatedEnemies = prevEnemies.map(enemy => {
           const enemyRadius = enemy.size / 2;
-          // Calculate direction to player using ref position
-          const dx = (positionRef.current.x + 20) - (enemy.x + enemyRadius); // Center to center
+          const dx = (positionRef.current.x + 20) - (enemy.x + enemyRadius);
           const dy = (positionRef.current.y + 20) - (enemy.y + enemyRadius);
           
-          // Calculate distance
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // Normalize direction and apply movement speed (using individual enemy speed)
           if (distance > 0) {
             const normalizedDx = (dx / distance) * enemy.speed;
             const normalizedDy = (dy / distance) * enemy.speed;
@@ -274,27 +522,21 @@ export default function GameScreen() {
           return enemy;
         });
 
-        // Check for collisions using ref position
-        const collidedEnemyIds = checkCollisions(updatedEnemies);
+        // Check for player-enemy collisions
+        const collidedEnemyIds = checkPlayerEnemyCollisions(updatedEnemies);
         
         if (collidedEnemyIds.length > 0 && !isPlayerInvincible) {
-          // Trigger screen shake effect
           triggerScreenShake();
-          
-          // Set player invincible
           setIsPlayerInvincible(true);
           
-          // Clear any existing invincibility timeout
           if (invincibilityTimeoutRef.current) {
             clearTimeout(invincibilityTimeoutRef.current);
           }
           
-          // Set timeout to remove invincibility after 1000ms
           invincibilityTimeoutRef.current = setTimeout(() => {
             setIsPlayerInvincible(false);
           }, 1000);
           
-          // Decrease health
           setPlayerHealth(prevHealth => {
             const newHealth = prevHealth - collidedEnemyIds.length;
             if (newHealth <= 0) {
@@ -303,7 +545,6 @@ export default function GameScreen() {
             return Math.max(0, newHealth);
           });
 
-          // Reduce enemy health instead of removing them immediately
           return updatedEnemies.map(enemy => {
             if (collidedEnemyIds.includes(enemy.id)) {
               const newHealth = enemy.health - 1;
@@ -313,11 +554,40 @@ export default function GameScreen() {
               };
             }
             return enemy;
-          }).filter(enemy => enemy.health > 0); // Only remove enemies with 0 health
+          }).filter(enemy => enemy.health > 0);
         }
 
         return updatedEnemies;
       });
+
+      // Move projectiles
+      setProjectiles(prevProjectiles => {
+        return prevProjectiles.map(projectile => {
+          const newX = projectile.x + projectile.vx;
+          const newY = projectile.y + projectile.vy;
+          const newDistanceTraveled = projectile.distanceTraveled + Math.hypot(projectile.vx, projectile.vy);
+          
+          return {
+            ...projectile,
+            x: newX,
+            y: newY,
+            distanceTraveled: newDistanceTraveled,
+          };
+        }).filter(projectile => {
+          // Remove projectiles that are off-screen or have traveled too far
+          const margin = 50;
+          const inBounds = projectile.x > -margin && projectile.x < screenWidth + margin &&
+                          projectile.y > -margin && projectile.y < screenHeight + margin;
+          const inRange = projectile.distanceTraveled < projectile.range;
+          return inBounds && inRange;
+        });
+      });
+
+      // Check projectile-enemy collisions
+      checkProjectileEnemyCollisions();
+
+      // Check player-XP orb collisions
+      checkPlayerXPCollisions();
     }, 16); // ~60 FPS
 
     gameLoopRef.current = gameLoopId;
@@ -325,7 +595,7 @@ export default function GameScreen() {
     return () => {
       clearInterval(gameLoopId);
     };
-  }, [isGameOver, isPlayerInvincible]);
+  }, [isGameOver, isPlayerInvincible, enemies, projectiles, xpOrbs]);
 
   // Clean up all timers on unmount
   useEffect(() => {
@@ -341,6 +611,10 @@ export default function GameScreen() {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+      }
+      if (weaponFireRef.current) {
+        clearInterval(weaponFireRef.current);
+        weaponFireRef.current = null;
       }
       if (invincibilityTimeoutRef.current) {
         clearTimeout(invincibilityTimeoutRef.current);
@@ -370,6 +644,7 @@ export default function GameScreen() {
         color="#00FFFF"
         isInvincible={isPlayerInvincible}
       />
+      
       {enemies.map(enemy => (
         <Enemy 
           key={enemy.id}
@@ -379,20 +654,42 @@ export default function GameScreen() {
           size={enemy.size}
         />
       ))}
+
+      {projectiles.map(projectile => (
+        <Projectile
+          key={projectile.id}
+          x={projectile.x}
+          y={projectile.y}
+          size={projectile.size}
+          color={projectile.color}
+        />
+      ))}
+
+      {xpOrbs.map(orb => (
+        <XPOrb
+          key={orb.id}
+          x={orb.x}
+          y={orb.y}
+          size={orb.size}
+          value={orb.value}
+        />
+      ))}
       
-      {/* HUD Component */}
       <HUD 
         score={timeElapsed}
         health={playerHealth}
+        level={playerStats.level}
+        xp={playerStats.xp}
+        xpToNextLevel={playerStats.xpToNextLevel}
         isPlayerInvincible={isPlayerInvincible}
       />
 
-      {/* Game Over overlay */}
       {isGameOver && (
         <View style={styles.gameOverOverlay}>
           <Text style={styles.gameOverText}>Game Over</Text>
           <Text style={styles.gameOverSubtext}>You survived {timeElapsed} seconds!</Text>
           <Text style={styles.gameOverStats}>Final Score: {timeElapsed * 10} points</Text>
+          <Text style={styles.gameOverStats}>Level Reached: {playerStats.level}</Text>
         </View>
       )}
     </Animated.View>
@@ -431,5 +728,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+    marginBottom: 4,
   },
 });

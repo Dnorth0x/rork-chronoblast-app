@@ -4,12 +4,17 @@ import { StyleSheet, View, Text } from 'react-native';
 interface HUDProps {
   score: number;
   health: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
   isPlayerInvincible?: boolean;
 }
 
-export default function HUD({ score, health, isPlayerInvincible = false }: HUDProps) {
+export default function HUD({ score, health, level, xp, xpToNextLevel, isPlayerInvincible = false }: HUDProps) {
   const healthPercentage = Math.max(0, health);
   const healthBarWidth = (healthPercentage / 100) * 120; // 120px max width
+  const xpPercentage = (xp / xpToNextLevel) * 100;
+  const xpBarWidth = (xpPercentage / 100) * 140; // 140px max width
 
   return (
     <>
@@ -37,6 +42,21 @@ export default function HUD({ score, health, isPlayerInvincible = false }: HUDPr
       <View style={styles.scoreContainer}>
         <Text style={styles.scoreLabel}>SCORE</Text>
         <Text style={styles.scoreValue}>{score * 10}</Text>
+      </View>
+
+      {/* Level and XP Display - Top Right */}
+      <View style={styles.levelContainer}>
+        <Text style={styles.levelText}>LVL {level}</Text>
+        <View style={styles.xpBarContainer}>
+          <View style={styles.xpBarBackground} />
+          <View 
+            style={[
+              styles.xpBarFill, 
+              { width: xpBarWidth }
+            ]} 
+          />
+        </View>
+        <Text style={styles.xpText}>{xp}/{xpToNextLevel}</Text>
       </View>
     </>
   );
@@ -105,5 +125,41 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  levelContainer: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    alignItems: 'flex-end',
+  },
+  levelText: {
+    color: '#FFD700',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  xpBarContainer: {
+    position: 'relative',
+    width: 140,
+    height: 6,
+    marginBottom: 4,
+  },
+  xpBarBackground: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderRadius: 3,
+  },
+  xpBarFill: {
+    position: 'absolute',
+    height: '100%',
+    backgroundColor: '#FFD700',
+    borderRadius: 3,
+  },
+  xpText: {
+    color: 'rgba(255, 215, 0, 0.8)',
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
