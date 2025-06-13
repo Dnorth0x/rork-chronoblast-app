@@ -127,6 +127,7 @@ class SoundManager {
   }
 
   async play(soundType: SoundType, volumeMultiplier: number = 1): Promise<void> {
+    // Check muted state synchronously before any async operations
     if (this.isMuted || Platform.OS === 'web' || !this.initialized) return;
     
     const config = SOUND_CONFIGS[soundType];
