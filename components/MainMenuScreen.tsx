@@ -183,7 +183,7 @@ export default function MainMenuScreen() {
               <Gamepad2 size={64} color="#FFFFFF" />
             </LinearGradient>
           </View>
-          <Text style={styles.title}>ChronoBurst</Text>
+          <Text style={styles.title}>ChronoBlast</Text>
           <Text style={styles.subtitle}>Master time, collect energy, become legend</Text>
         </Animated.View>
 
