@@ -216,8 +216,24 @@ export const useGameStore = create<GameState>()(
           },
         }));
         
+        // Initialize background stars
         const { canvasWidth, canvasHeight } = get();
+        const stars: Star[] = [];
+        for (let i = 0; i < 30; i++) {
+          stars.push({
+            id: `star-${i}`,
+            x: Math.random() * canvasWidth,
+            y: Math.random() * canvasHeight,
+            radius: Math.random() * 2 + 1,
+            alpha: Math.random() * 0.8 + 0.2,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            twinklePhase: Math.random() * Math.PI * 2,
+          });
+        }
+        
         set(state => ({
+          backgroundStars: stars,
           player: {
             ...state.player,
             x: canvasWidth / 2,
@@ -237,6 +253,11 @@ export const useGameStore = create<GameState>()(
             [PT.CONFUSION_ORB]: { active: false, endTime: 0 },
           },
         }));
+
+        // End game starting phase after a short delay
+        setTimeout(() => {
+          set(state => ({ gameStarting: false }));
+        }, 1000);
       },
       
       endGame: () => {
@@ -273,6 +294,7 @@ export const useGameStore = create<GameState>()(
           maxCombo: 0,
           particles: [],
           collectionEffects: [],
+          backgroundStars: [],
           activePowerUps: {
             [PT.SCORE_BOOST]: { active: false, endTime: 0 },
             [PT.SLOW_ENEMY]: { active: false, endTime: 0 },
@@ -374,7 +396,9 @@ export const useGameStore = create<GameState>()(
             player.invulnerable = false;
           }
           
-          // Update player movement
+          // Update player movement with optimized lerp factor
+          const lerpFactor = state.performanceMode ? player.lerpFactor * 0.8 : player.lerpFactor;
+          
           if (player.isDashing) {
             const dashProgress = Math.min(1, (currentTime - player.dashEndTime + GAME_CONFIG.PLAYER_DASH_DURATION) / GAME_CONFIG.PLAYER_DASH_DURATION);
             const easeOut = 1 - Math.pow(1 - dashProgress, 3); // Cubic ease-out
@@ -389,11 +413,11 @@ export const useGameStore = create<GameState>()(
             const dy = player.targetY - player.y;
             
             if (state.activePowerUps[PT.CONFUSION_ORB].active) {
-              player.x -= dx * player.lerpFactor;
-              player.y -= dy * player.lerpFactor;
+              player.x -= dx * lerpFactor;
+              player.y -= dy * lerpFactor;
             } else {
-              player.x += dx * player.lerpFactor;
-              player.y += dy * player.lerpFactor;
+              player.x += dx * lerpFactor;
+              player.y += dy * lerpFactor;
             }
           }
           
@@ -412,9 +436,11 @@ export const useGameStore = create<GameState>()(
             player.isPopping = false;
           }
           
-          // Update particles
+          // Update particles with performance optimizations
           const speedMultiplier = state.activePowerUps[PT.SLOW_ENEMY].active ? 0.5 : 1;
-          const particles = state.particles.map(p => {
+          const maxParticles = state.performanceMode ? 25 : GAME_CONFIG.MAX_PARTICLES_ON_SCREEN;
+          
+          const particles = state.particles.slice(0, maxParticles).map(p => {
             const newP = {
               ...p,
               x: p.x + p.baseVx * speedMultiplier,
@@ -431,8 +457,10 @@ export const useGameStore = create<GameState>()(
                     p.y < -margin || p.y > state.canvasHeight + margin);
           });
           
-          // Update collection effects
+          // Update collection effects (limit in performance mode)
+          const maxEffects = state.performanceMode ? 5 : 20;
           const collectionEffects = state.collectionEffects
+            .slice(0, maxEffects)
             .map(e => ({
               ...e,
               particles: e.particles
@@ -488,7 +516,8 @@ export const useGameStore = create<GameState>()(
       
       spawnParticle: () => {
         set(state => {
-          if (state.particles.length >= GAME_CONFIG.MAX_PARTICLES_ON_SCREEN || !state.canvasWidth || !state.canvasHeight) {
+          const maxParticles = state.performanceMode ? 20 : GAME_CONFIG.MAX_PARTICLES_ON_SCREEN;
+          if (state.particles.length >= maxParticles || !state.canvasWidth || !state.canvasHeight) {
             return state;
           }
           
@@ -627,14 +656,15 @@ export const useGameStore = create<GameState>()(
                 state.activePowerUps[p.powerUpType].endTime = currentTime + GAME_CONFIG.POWERUP_DURATION;
               }
               
-              // Create collection effect
+              // Create collection effect (limit particles in performance mode)
+              const effectParticleCount = state.performanceMode ? Math.min(p.effectParticleCount, 5) : p.effectParticleCount;
               newCollectionEffects.push({
                 id: Math.random().toString(36).substr(2, 9),
                 x: p.x,
                 y: p.y,
                 color: p.glowColor,
                 spawnTime: currentTime,
-                particles: Array.from({ length: p.effectParticleCount }, () => {
+                particles: Array.from({ length: effectParticleCount }, () => {
                   const angle = Math.random() * Math.PI * 2;
                   const speed = Math.random() * 4 + 2;
                   return {
