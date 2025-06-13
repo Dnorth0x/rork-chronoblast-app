@@ -1,17 +1,17 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import MainMenuScreen from '@/components/MainMenuScreen';
+import GameScreen from '@/components/GameScreen';
 
-export default function HomeScreen() {
+export default function Game() {
   return (
     <>
       <Stack.Screen 
         options={{ 
-          title: 'ChronoBurst',
+          title: 'ChronoBurst - Game',
           headerShown: false,
         }} 
       />
-      <MainMenuScreen />
+      <GameScreen />
     </>
   );
 }

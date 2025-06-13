@@ -49,6 +49,13 @@ function RootLayoutNav() {
           title: "ChronoBurst"
         }} 
       />
+      <Stack.Screen 
+        name="game" 
+        options={{ 
+          headerShown: false,
+          title: "Game"
+        }} 
+      />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
