@@ -129,7 +129,7 @@ export default function MainMenuScreen() {
 
   return (
     <ImageBackground
-      source={require('@/assets/images/background.png')}
+      source={{ uri: 'https://raw.githubusercontent.com/Dnorth0x/rork-chronoblast-app/main/assets/images/background.png' }}
       style={styles.container}
       resizeMode="cover"
     >
