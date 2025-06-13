@@ -5,7 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "index",
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -42,6 +42,13 @@ function RootLayoutNav() {
         headerBackTitle: "Back",
       }}
     >
+      <Stack.Screen 
+        name="index" 
+        options={{ 
+          headerShown: false,
+          title: "ChronoBurst"
+        }} 
+      />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
