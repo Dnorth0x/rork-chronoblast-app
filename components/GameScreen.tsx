@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useReducer, useEffect, useRef } from 'react';
 import { StyleSheet, View, PanResponder, Dimensions, Text, Animated } from 'react-native';
 import Player from './Player';
 import Enemy from './Enemy';
@@ -6,101 +6,34 @@ import Projectile from './Projectile';
 import XPOrb from './XPOrb';
 import ChronoShard from './ChronoShard';
 import HUD from './HUD';
-import { EnemyObject } from '@/types';
-import { enemyData, enemyTypes } from '@/game/enemyData';
-import { weaponData } from '@/game/weaponData';
+import { gameReducer, initialGameState } from '@/game/gameReducer';
 import { useUpgradeStore } from '@/stores/upgradeStore';
 import { getUpgradeValue } from '@/game/upgradeData';
 import { soundManager } from '@/utils/SoundManager';
+import { weaponData } from '@/game/weaponData';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-interface ProjectileObject {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  damage: number;
-  size: number;
-  color: string;
-  range: number;
-  distanceTraveled: number;
-}
-
-interface XPOrbObject {
-  id: string;
-  x: number;
-  y: number;
-  value: number;
-  size: number;
-}
-
-interface ChronoShardObject {
-  id: string;
-  x: number;
-  y: number;
-  value: number;
-  size: number;
-}
-
-interface PlayerStats {
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
-}
-
 export default function GameScreen() {
   const { addShards, getUpgradeLevel } = useUpgradeStore();
+  const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
   
   // Use refs for player position to avoid re-renders
   const positionRef = useRef({
-    x: screenWidth / 2 - 20, // Center horizontally (minus half player width)
-    y: screenHeight / 2 - 20, // Center vertically (minus half player height)
-  });
-  
-  // Ref to the player component for direct native updates
-  const playerRef = useRef<View>(null);
-  
-  // Ref for the main container to enable screen shake
-  const containerRef = useRef<View>(null);
-  const shakeAnimation = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-
-  // Initial position state (only used for initial render)
-  const [initialPlayerPosition] = useState({
     x: screenWidth / 2 - 20,
     y: screenHeight / 2 - 20,
   });
-
-  const [enemies, setEnemies] = useState<EnemyObject[]>([]);
-  const [projectiles, setProjectiles] = useState<ProjectileObject[]>([]);
-  const [xpOrbs, setXpOrbs] = useState<XPOrbObject[]>([]);
-  const [chronoShards, setChronoShards] = useState<ChronoShardObject[]>([]);
   
-  // Apply upgrades to base stats
-  const baseHealth = 100 + getUpgradeValue('player_health', getUpgradeLevel('player_health'));
-  const [playerHealth, setPlayerHealth] = useState(baseHealth);
-  const [maxPlayerHealth] = useState(baseHealth);
-  
-  const [playerStats, setPlayerStats] = useState<PlayerStats>({
-    level: 1,
-    xp: 0,
-    xpToNextLevel: 100,
-  });
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [isPlayerInvincible, setIsPlayerInvincible] = useState(false);
-  const [spawnRate, setSpawnRate] = useState(2000); // milliseconds
-  const [timeElapsed, setTimeElapsed] = useState(0); // seconds
+  const playerRef = useRef<View>(null);
+  const containerRef = useRef<View>(null);
+  const shakeAnimation = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
+  // Timer refs
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
   const spawnerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const weaponFireRef = useRef<NodeJS.Timeout | null>(null);
   const invincibilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const enemyIdCounter = useRef(0);
-  const projectileIdCounter = useRef(0);
-  const xpOrbIdCounter = useRef(0);
-  const shardIdCounter = useRef(0);
 
   // Sound tracking refs
   const lastPlayerLevel = useRef(1);
@@ -115,7 +48,6 @@ export default function GameScreen() {
   useEffect(() => {
     soundManager.init();
     
-    // Play game start sound once
     if (!gameStartSoundPlayed.current) {
       soundManager.playSystemSound('game_start');
       gameStartSoundPlayed.current = true;
@@ -124,36 +56,32 @@ export default function GameScreen() {
 
   // Level up sound effect
   useEffect(() => {
-    if (playerStats.level > lastPlayerLevel.current) {
+    if (gameState.playerStats.level > lastPlayerLevel.current) {
       soundManager.playSystemSound('level_up');
-      lastPlayerLevel.current = playerStats.level;
+      lastPlayerLevel.current = gameState.playerStats.level;
     }
-  }, [playerStats.level]);
+  }, [gameState.playerStats.level]);
 
   // Game over sound effect
   useEffect(() => {
-    if (isGameOver) {
+    if (gameState.isGameOver) {
       soundManager.playSystemSound('game_over');
     }
-  }, [isGameOver]);
+  }, [gameState.isGameOver]);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     
     onPanResponderMove: (event, gestureState) => {
-      if (isGameOver) return;
+      if (gameState.isGameOver) return;
       
       const newX = Math.max(0, Math.min(screenWidth - 40, gestureState.moveX - 20));
       const newY = Math.max(0, Math.min(screenHeight - 40, gestureState.moveY - 20));
       
-      // Update position ref instead of state
-      positionRef.current = {
-        x: newX,
-        y: newY,
-      };
+      positionRef.current = { x: newX, y: newY };
+      dispatch({ type: 'UPDATE_PLAYER_POSITION', payload: { x: newX, y: newY } });
 
-      // Directly update the native component without re-render
       if (playerRef.current) {
         playerRef.current.setNativeProps({
           style: {
@@ -200,363 +128,9 @@ export default function GameScreen() {
     shakeSequence.start();
   };
 
-  // Function to generate random off-screen position
-  const generateOffScreenPosition = (enemySize: number) => {
-    const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
-    
-    switch (side) {
-      case 0: // Top
-        return {
-          x: Math.random() * screenWidth,
-          y: -enemySize,
-        };
-      case 1: // Right
-        return {
-          x: screenWidth + enemySize,
-          y: Math.random() * screenHeight,
-        };
-      case 2: // Bottom
-        return {
-          x: Math.random() * screenWidth,
-          y: screenHeight + enemySize,
-        };
-      case 3: // Left
-        return {
-          x: -enemySize,
-          y: Math.random() * screenHeight,
-        };
-      default:
-        return { x: -enemySize, y: -enemySize };
-    }
-  };
-
-  // Function to spawn a new enemy
-  const spawnEnemy = () => {
-    if (isGameOver) return;
-    
-    // Randomly select enemy type
-    const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-    const enemyConfig = enemyData[randomType];
-    
-    const position = generateOffScreenPosition(enemyConfig.size);
-    
-    const newEnemy: EnemyObject = {
-      id: `enemy-${enemyIdCounter.current++}`,
-      x: position.x,
-      y: position.y,
-      color: enemyConfig.color,
-      type: randomType,
-      health: enemyConfig.health,
-      speed: enemyConfig.speed,
-      size: enemyConfig.size,
-    };
-
-    setEnemies(prevEnemies => [...prevEnemies, newEnemy]);
-  };
-
-  // Function to find nearest enemy
-  const findNearestEnemy = () => {
-    if (enemies.length === 0) return null;
-    
-    const playerCenterX = positionRef.current.x + 20;
-    const playerCenterY = positionRef.current.y + 20;
-    
-    let nearestEnemy = enemies[0];
-    let nearestDistance = Math.hypot(
-      nearestEnemy.x + nearestEnemy.size / 2 - playerCenterX,
-      nearestEnemy.y + nearestEnemy.size / 2 - playerCenterY
-    );
-    
-    for (let i = 1; i < enemies.length; i++) {
-      const enemy = enemies[i];
-      const distance = Math.hypot(
-        enemy.x + enemy.size / 2 - playerCenterX,
-        enemy.y + enemy.size / 2 - playerCenterY
-      );
-      
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestEnemy = enemy;
-      }
-    }
-    
-    return nearestDistance <= weaponData.basic_orb.range ? nearestEnemy : null;
-  };
-
-  // Function to fire projectile
-  const fireProjectile = () => {
-    if (isGameOver) return;
-    
-    const nearestEnemy = findNearestEnemy();
-    if (!nearestEnemy) return;
-    
-    const weapon = weaponData.basic_orb;
-    const weaponDamage = weapon.damage + getUpgradeValue('weapon_damage', getUpgradeLevel('weapon_damage'));
-    
-    const playerCenterX = positionRef.current.x + 20;
-    const playerCenterY = positionRef.current.y + 20;
-    const enemyCenterX = nearestEnemy.x + nearestEnemy.size / 2;
-    const enemyCenterY = nearestEnemy.y + nearestEnemy.size / 2;
-    
-    const angle = Math.atan2(enemyCenterY - playerCenterY, enemyCenterX - playerCenterX);
-    const vx = Math.cos(angle) * weapon.speed;
-    const vy = Math.sin(angle) * weapon.speed;
-    
-    const newProjectile: ProjectileObject = {
-      id: `projectile-${projectileIdCounter.current++}`,
-      x: playerCenterX,
-      y: playerCenterY,
-      vx,
-      vy,
-      damage: weaponDamage,
-      size: weapon.projectileSize,
-      color: weapon.color,
-      range: weapon.range,
-      distanceTraveled: 0,
-    };
-    
-    setProjectiles(prevProjectiles => [...prevProjectiles, newProjectile]);
-    
-    // Play weapon fire sound
-    soundManager.playGameSound('weapon_fire');
-  };
-
-  // Function to spawn XP orb
-  const spawnXPOrb = (x: number, y: number, value: number) => {
-    const newXPOrb: XPOrbObject = {
-      id: `xp-${xpOrbIdCounter.current++}`,
-      x,
-      y,
-      value,
-      size: 12,
-    };
-    
-    setXpOrbs(prevOrbs => [...prevOrbs, newXPOrb]);
-  };
-
-  // Function to spawn ChronoShard
-  const spawnChronoShard = (x: number, y: number, value: number) => {
-    const newShard: ChronoShardObject = {
-      id: `shard-${shardIdCounter.current++}`,
-      x,
-      y,
-      value,
-      size: 16,
-    };
-    
-    setChronoShards(prevShards => [...prevShards, newShard]);
-  };
-
-  // Function to handle level up
-  const handleLevelUp = () => {
-    setPlayerStats(prevStats => ({
-      level: prevStats.level + 1,
-      xp: prevStats.xp - prevStats.xpToNextLevel,
-      xpToNextLevel: prevStats.xpToNextLevel + 50,
-    }));
-  };
-
-  // Collision detection function for player vs enemies
-  const checkPlayerEnemyCollisions = (enemiesArray: EnemyObject[]) => {
-    const playerCenterX = positionRef.current.x + 20;
-    const playerCenterY = positionRef.current.y + 20;
-    const playerRadius = 20;
-
-    const collidedEnemyIds: string[] = [];
-
-    enemiesArray.forEach(enemy => {
-      const enemyRadius = enemy.size / 2;
-      const enemyCenterX = enemy.x + enemyRadius;
-      const enemyCenterY = enemy.y + enemyRadius;
-      const collisionDistance = playerRadius + enemyRadius;
-      
-      const distance = Math.sqrt(
-        Math.pow(playerCenterX - enemyCenterX, 2) + 
-        Math.pow(playerCenterY - enemyCenterY, 2)
-      );
-
-      if (distance < collisionDistance) {
-        collidedEnemyIds.push(enemy.id);
-      }
-    });
-
-    return collidedEnemyIds;
-  };
-
-  // Collision detection function for projectiles vs enemies
-  const checkProjectileEnemyCollisions = () => {
-    const hitProjectileIds: string[] = [];
-    const hitEnemyIds: string[] = [];
-    const newXPOrbs: XPOrbObject[] = [];
-    const newShards: ChronoShardObject[] = [];
-
-    projectiles.forEach(projectile => {
-      enemies.forEach(enemy => {
-        const enemyRadius = enemy.size / 2;
-        const enemyCenterX = enemy.x + enemyRadius;
-        const enemyCenterY = enemy.y + enemyRadius;
-        const projectileRadius = projectile.size / 2;
-        
-        const distance = Math.hypot(
-          projectile.x - enemyCenterX,
-          projectile.y - enemyCenterY
-        );
-
-        if (distance < projectileRadius + enemyRadius) {
-          hitProjectileIds.push(projectile.id);
-          
-          // Play enemy hit sound
-          soundManager.playGameSound('enemy_hit');
-          
-          // Damage enemy
-          const updatedEnemy = { ...enemy, health: enemy.health - projectile.damage };
-          
-          if (updatedEnemy.health <= 0) {
-            hitEnemyIds.push(enemy.id);
-            
-            // Play enemy death sound
-            soundManager.playGameSound('enemy_death');
-            
-            // Spawn XP orb where enemy died
-            const baseXpValue = enemy.type === 'brute' ? 15 : 10;
-            const xpMultiplier = 1 + getUpgradeValue('xp_multiplier', getUpgradeLevel('xp_multiplier'));
-            const xpValue = Math.floor(baseXpValue * xpMultiplier);
-            
-            newXPOrbs.push({
-              id: `xp-${xpOrbIdCounter.current++}`,
-              x: enemyCenterX,
-              y: enemyCenterY,
-              value: xpValue,
-              size: 12,
-            });
-
-            // 15% chance to drop ChronoShard
-            if (Math.random() < 0.15) {
-              const shardValue = enemy.type === 'brute' ? 3 : 1;
-              newShards.push({
-                id: `shard-${shardIdCounter.current++}`,
-                x: enemyCenterX + (Math.random() - 0.5) * 30,
-                y: enemyCenterY + (Math.random() - 0.5) * 30,
-                value: shardValue,
-                size: 16,
-              });
-            }
-          } else {
-            // Update enemy health
-            setEnemies(prevEnemies => 
-              prevEnemies.map(e => e.id === enemy.id ? updatedEnemy : e)
-            );
-          }
-        }
-      });
-    });
-
-    // Remove hit projectiles
-    if (hitProjectileIds.length > 0) {
-      setProjectiles(prevProjectiles => 
-        prevProjectiles.filter(p => !hitProjectileIds.includes(p.id))
-      );
-    }
-
-    // Remove defeated enemies
-    if (hitEnemyIds.length > 0) {
-      setEnemies(prevEnemies => 
-        prevEnemies.filter(e => !hitEnemyIds.includes(e.id))
-      );
-    }
-
-    // Add new XP orbs
-    if (newXPOrbs.length > 0) {
-      setXpOrbs(prevOrbs => [...prevOrbs, ...newXPOrbs]);
-    }
-
-    // Add new ChronoShards
-    if (newShards.length > 0) {
-      setChronoShards(prevShards => [...prevShards, ...newShards]);
-    }
-  };
-
-  // Collision detection function for player vs XP orbs
-  const checkPlayerXPCollisions = () => {
-    const playerCenterX = positionRef.current.x + 20;
-    const playerCenterY = positionRef.current.y + 20;
-    const playerRadius = 20;
-    const collectedOrbIds: string[] = [];
-    let totalXP = 0;
-
-    xpOrbs.forEach(orb => {
-      const distance = Math.hypot(
-        playerCenterX - orb.x,
-        playerCenterY - orb.y
-      );
-
-      if (distance < playerRadius + orb.size / 2) {
-        collectedOrbIds.push(orb.id);
-        totalXP += orb.value;
-      }
-    });
-
-    if (collectedOrbIds.length > 0) {
-      // Play XP pickup sound
-      soundManager.playPickupSound('pickup_xp');
-      
-      // Remove collected orbs
-      setXpOrbs(prevOrbs => 
-        prevOrbs.filter(orb => !collectedOrbIds.includes(orb.id))
-      );
-
-      // Add XP to player
-      setPlayerStats(prevStats => {
-        const newXP = prevStats.xp + totalXP;
-        if (newXP >= prevStats.xpToNextLevel) {
-          // Level up!
-          setTimeout(handleLevelUp, 0);
-        }
-        return {
-          ...prevStats,
-          xp: newXP,
-        };
-      });
-    }
-  };
-
-  // Collision detection function for player vs ChronoShards
-  const checkPlayerShardCollisions = () => {
-    const playerCenterX = positionRef.current.x + 20;
-    const playerCenterY = positionRef.current.y + 20;
-    const playerRadius = 20;
-    const collectedShardIds: string[] = [];
-    let totalShards = 0;
-
-    chronoShards.forEach(shard => {
-      const distance = Math.hypot(
-        playerCenterX - shard.x,
-        playerCenterY - shard.y
-      );
-
-      if (distance < playerRadius + shard.size / 2) {
-        collectedShardIds.push(shard.id);
-        totalShards += shard.value;
-      }
-    });
-
-    if (collectedShardIds.length > 0) {
-      // Play shard pickup sound
-      soundManager.playPickupSound('pickup_shard');
-      
-      // Remove collected shards
-      setChronoShards(prevShards => 
-        prevShards.filter(shard => !collectedShardIds.includes(shard.id))
-      );
-
-      // Add shards to persistent store
-      addShards(totalShards);
-    }
-  };
-
   // Weapon firing loop with upgrade-modified fire rate
   useEffect(() => {
-    if (isGameOver) {
+    if (gameState.isGameOver) {
       if (weaponFireRef.current) {
         clearInterval(weaponFireRef.current);
         weaponFireRef.current = null;
@@ -569,7 +143,8 @@ export default function GameScreen() {
     const actualFireRate = Math.max(100, baseFireRate - fireRateReduction);
 
     const weaponFireId = setInterval(() => {
-      fireProjectile();
+      dispatch({ type: 'SPAWN_PROJECTILE', payload: {} as any });
+      soundManager.playGameSound('weapon_fire');
     }, actualFireRate);
     
     weaponFireRef.current = weaponFireId;
@@ -577,11 +152,11 @@ export default function GameScreen() {
     return () => {
       clearInterval(weaponFireId);
     };
-  }, [isGameOver, enemies]);
+  }, [gameState.isGameOver, gameState.enemies]);
 
   // Enemy spawner loop
   useEffect(() => {
-    if (isGameOver) {
+    if (gameState.isGameOver) {
       if (spawnerRef.current) {
         clearInterval(spawnerRef.current);
         spawnerRef.current = null;
@@ -590,19 +165,19 @@ export default function GameScreen() {
     }
 
     const spawnerId = setInterval(() => {
-      spawnEnemy();
-    }, spawnRate);
+      dispatch({ type: 'SPAWN_ENEMY', payload: {} as any });
+    }, gameState.spawnRate);
     
     spawnerRef.current = spawnerId;
 
     return () => {
       clearInterval(spawnerId);
     };
-  }, [spawnRate, isGameOver]);
+  }, [gameState.spawnRate, gameState.isGameOver]);
 
   // Timer for elapsed time and difficulty scaling
   useEffect(() => {
-    if (isGameOver) {
+    if (gameState.isGameOver) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -611,36 +186,24 @@ export default function GameScreen() {
     }
 
     const difficultyTimerId = setInterval(() => {
-      setTimeElapsed(prevTime => {
-        const newTime = prevTime + 1;
-        
-        // Play time warning at 30 seconds
-        if (newTime === 30) {
-          soundManager.play('time_warning', 0.8);
-        }
-        
-        // Every 10 seconds, increase difficulty by decreasing spawn rate by 10%
-        if (newTime % 10 === 0) {
-          setSpawnRate(prevRate => {
-            const newRate = Math.floor(prevRate * 0.9);
-            return Math.max(500, newRate); // Minimum spawn rate of 500ms
-          });
-        }
-        
-        return newTime;
-      });
-    }, 1000); // Run every second
+      dispatch({ type: 'INCREMENT_TIME' });
+      
+      // Play time warning at 30 seconds
+      if (gameState.timeElapsed === 29) { // Will be 30 after increment
+        soundManager.play('time_warning', 0.8);
+      }
+    }, 1000);
 
     timerRef.current = difficultyTimerId;
 
     return () => {
       clearInterval(difficultyTimerId);
     };
-  }, [isGameOver]);
+  }, [gameState.isGameOver, gameState.timeElapsed]);
 
   // Game loop for movement and collision detection
   useEffect(() => {
-    if (isGameOver) {
+    if (gameState.isGameOver) {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
         gameLoopRef.current = null;
@@ -649,109 +212,11 @@ export default function GameScreen() {
     }
 
     const gameLoopId = setInterval(() => {
-      // Move enemies towards player
-      setEnemies(prevEnemies => {
-        const updatedEnemies = prevEnemies.map(enemy => {
-          const enemyRadius = enemy.size / 2;
-          const dx = (positionRef.current.x + 20) - (enemy.x + enemyRadius);
-          const dy = (positionRef.current.y + 20) - (enemy.y + enemyRadius);
-          
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance > 0) {
-            const normalizedDx = (dx / distance) * enemy.speed;
-            const normalizedDy = (dy / distance) * enemy.speed;
-            
-            return {
-              ...enemy,
-              x: enemy.x + normalizedDx,
-              y: enemy.y + normalizedDy,
-            };
-          }
-          
-          return enemy;
-        });
-
-        // Check for player-enemy collisions
-        const collidedEnemyIds = checkPlayerEnemyCollisions(updatedEnemies);
-        
-        if (collidedEnemyIds.length > 0 && !isPlayerInvincible) {
-          // Play player hit sound and trigger screen shake
-          soundManager.playGameSound('player_hit');
-          triggerScreenShake();
-          
-          setIsPlayerInvincible(true);
-          
-          // Play invincibility sound
-          soundManager.play('invincibility', 0.4);
-          
-          // Apply invincibility duration upgrade
-          const baseDuration = 1000;
-          const durationBonus = getUpgradeValue('invincibility_duration', getUpgradeLevel('invincibility_duration'));
-          const invincibilityDuration = baseDuration + durationBonus;
-          
-          if (invincibilityTimeoutRef.current) {
-            clearTimeout(invincibilityTimeoutRef.current);
-          }
-          
-          invincibilityTimeoutRef.current = setTimeout(() => {
-            setIsPlayerInvincible(false);
-          }, invincibilityDuration);
-          
-          setPlayerHealth(prevHealth => {
-            const newHealth = prevHealth - collidedEnemyIds.length;
-            if (newHealth <= 0) {
-              setIsGameOver(true);
-            }
-            return Math.max(0, newHealth);
-          });
-
-          return updatedEnemies.map(enemy => {
-            if (collidedEnemyIds.includes(enemy.id)) {
-              const newHealth = enemy.health - 1;
-              return {
-                ...enemy,
-                health: newHealth,
-              };
-            }
-            return enemy;
-          }).filter(enemy => enemy.health > 0);
-        }
-
-        return updatedEnemies;
-      });
-
-      // Move projectiles
-      setProjectiles(prevProjectiles => {
-        return prevProjectiles.map(projectile => {
-          const newX = projectile.x + projectile.vx;
-          const newY = projectile.y + projectile.vy;
-          const newDistanceTraveled = projectile.distanceTraveled + Math.hypot(projectile.vx, projectile.vy);
-          
-          return {
-            ...projectile,
-            x: newX,
-            y: newY,
-            distanceTraveled: newDistanceTraveled,
-          };
-        }).filter(projectile => {
-          // Remove projectiles that are off-screen or have traveled too far
-          const margin = 50;
-          const inBounds = projectile.x > -margin && projectile.x < screenWidth + margin &&
-                          projectile.y > -margin && projectile.y < screenHeight + margin;
-          const inRange = projectile.distanceTraveled < projectile.range;
-          return inBounds && inRange;
-        });
-      });
-
-      // Check projectile-enemy collisions
-      checkProjectileEnemyCollisions();
-
-      // Check player-XP orb collisions
-      checkPlayerXPCollisions();
-
-      // Check player-ChronoShard collisions
-      checkPlayerShardCollisions();
+      // Move entities
+      dispatch({ type: 'MOVE_ENTITIES' });
+      
+      // Handle collisions
+      dispatch({ type: 'HANDLE_COLLISIONS' });
     }, 16); // ~60 FPS
 
     gameLoopRef.current = gameLoopId;
@@ -759,7 +224,27 @@ export default function GameScreen() {
     return () => {
       clearInterval(gameLoopId);
     };
-  }, [isGameOver, isPlayerInvincible, enemies, projectiles, xpOrbs, chronoShards]);
+  }, [gameState.isGameOver]);
+
+  // Handle invincibility timeout
+  useEffect(() => {
+    if (gameState.isPlayerInvincible) {
+      soundManager.play('invincibility', 0.4);
+      triggerScreenShake();
+      
+      const baseDuration = 1000;
+      const durationBonus = getUpgradeValue('invincibility_duration', getUpgradeLevel('invincibility_duration'));
+      const invincibilityDuration = baseDuration + durationBonus;
+      
+      if (invincibilityTimeoutRef.current) {
+        clearTimeout(invincibilityTimeoutRef.current);
+      }
+      
+      invincibilityTimeoutRef.current = setTimeout(() => {
+        dispatch({ type: 'SET_PLAYER_INVINCIBLE', payload: false });
+      }, invincibilityDuration);
+    }
+  }, [gameState.isPlayerInvincible]);
 
   // Clean up all timers on unmount
   useEffect(() => {
@@ -803,13 +288,13 @@ export default function GameScreen() {
     >
       <Player 
         ref={playerRef}
-        x={initialPlayerPosition.x} 
-        y={initialPlayerPosition.y} 
+        x={gameState.playerPosition.x} 
+        y={gameState.playerPosition.y} 
         color="#00FFFF"
-        isInvincible={isPlayerInvincible}
+        isInvincible={gameState.isPlayerInvincible}
       />
       
-      {enemies.map(enemy => (
+      {gameState.enemies.map(enemy => (
         <Enemy 
           key={enemy.id}
           x={enemy.x} 
@@ -819,7 +304,7 @@ export default function GameScreen() {
         />
       ))}
 
-      {projectiles.map(projectile => (
+      {gameState.projectiles.map(projectile => (
         <Projectile
           key={projectile.id}
           x={projectile.x}
@@ -829,7 +314,7 @@ export default function GameScreen() {
         />
       ))}
 
-      {xpOrbs.map(orb => (
+      {gameState.xpOrbs.map(orb => (
         <XPOrb
           key={orb.id}
           x={orb.x}
@@ -839,7 +324,7 @@ export default function GameScreen() {
         />
       ))}
 
-      {chronoShards.map(shard => (
+      {gameState.chronoShards.map(shard => (
         <ChronoShard
           key={shard.id}
           x={shard.x}
@@ -850,21 +335,21 @@ export default function GameScreen() {
       ))}
       
       <HUD 
-        score={timeElapsed}
-        health={playerHealth}
-        maxHealth={maxPlayerHealth}
-        level={playerStats.level}
-        xp={playerStats.xp}
-        xpToNextLevel={playerStats.xpToNextLevel}
-        isPlayerInvincible={isPlayerInvincible}
+        score={gameState.timeElapsed}
+        health={gameState.playerHealth}
+        maxHealth={gameState.maxPlayerHealth}
+        level={gameState.playerStats.level}
+        xp={gameState.playerStats.xp}
+        xpToNextLevel={gameState.playerStats.xpToNextLevel}
+        isPlayerInvincible={gameState.isPlayerInvincible}
       />
 
-      {isGameOver && (
+      {gameState.isGameOver && (
         <View style={styles.gameOverOverlay}>
           <Text style={styles.gameOverText}>Game Over</Text>
-          <Text style={styles.gameOverSubtext}>You survived {timeElapsed} seconds!</Text>
-          <Text style={styles.gameOverStats}>Final Score: {timeElapsed * 10} points</Text>
-          <Text style={styles.gameOverStats}>Level Reached: {playerStats.level}</Text>
+          <Text style={styles.gameOverSubtext}>You survived {gameState.timeElapsed} seconds!</Text>
+          <Text style={styles.gameOverStats}>Final Score: {gameState.timeElapsed * 10} points</Text>
+          <Text style={styles.gameOverStats}>Level Reached: {gameState.playerStats.level}</Text>
         </View>
       )}
     </Animated.View>
