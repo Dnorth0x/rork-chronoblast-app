@@ -13,6 +13,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
+    'SpaceFont': require('../assets/fonts/space_font.ttf'),
   });
 
   useEffect(() => {

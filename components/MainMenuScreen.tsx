@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform, Animated } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, Animated, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Gamepad2, Trophy, Gem, Volume2 } from 'lucide-react-native';
 import { useUpgradeStore } from '@/stores/upgradeStore';
@@ -139,12 +139,14 @@ export default function MainMenuScreen() {
   });
 
   return (
-    <LinearGradient
-      colors={['#0a0a0f', '#1a1a2e', '#16213e', '#0f3460']}
+    <ImageBackground
+      source={{ uri: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80' }}
       style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      resizeMode="cover"
     >
+      {/* Dark overlay for better text readability */}
+      <View style={styles.overlay} />
+      
       {/* Animated background stars */}
       <View style={styles.starsContainer}>
         {[...Array(20)].map((_, i) => (
@@ -196,7 +198,7 @@ export default function MainMenuScreen() {
           ]}
         >
           <LinearGradient
-            colors={['rgba(157, 78, 221, 0.2)', 'rgba(199, 125, 255, 0.1)']}
+            colors={['rgba(157, 78, 221, 0.3)', 'rgba(199, 125, 255, 0.2)']}
             style={styles.currencyGradient}
           >
             <View style={styles.currencyItem}>
@@ -250,7 +252,7 @@ export default function MainMenuScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['rgba(0, 255, 255, 0.1)', 'rgba(0, 255, 255, 0.05)']}
+              colors={['rgba(0, 255, 255, 0.2)', 'rgba(0, 255, 255, 0.1)']}
               style={styles.buttonGradient}
             >
               <View style={styles.buttonContent}>
@@ -270,7 +272,7 @@ export default function MainMenuScreen() {
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </LinearGradient>
+    </ImageBackground>
   );
 }
 
@@ -280,6 +282,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   starsContainer: {
     position: 'absolute',
@@ -294,7 +304,7 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: '#FFFFFF',
     borderRadius: 1,
-    opacity: 0.7,
+    opacity: 0.8,
   },
   content: {
     alignItems: 'center',
@@ -333,19 +343,22 @@ const styles = StyleSheet.create({
     textShadowRadius: 20,
     letterSpacing: 3,
     fontFamily: Platform.select({
-      ios: 'Helvetica Neue',
-      android: 'Roboto',
-      default: 'system',
+      ios: 'SpaceFont',
+      android: 'SpaceFont',
+      default: 'SpaceFont',
     }),
   },
   subtitle: {
     fontSize: 16,
-    color: '#B0B0B0',
+    color: '#E0E0E0',
     textAlign: 'center',
     lineHeight: 24,
     fontWeight: '500',
     letterSpacing: 1,
     maxWidth: 280,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   currencyContainer: {
     width: '100%',
@@ -355,12 +368,13 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(157, 78, 221, 0.3)',
+    borderColor: 'rgba(157, 78, 221, 0.4)',
     shadowColor: '#9D4EDD',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   currencyItem: {
     flexDirection: 'row',
@@ -388,7 +402,7 @@ const styles = StyleSheet.create({
   },
   totalEarnedText: {
     fontSize: 12,
-    color: 'rgba(157, 78, 221, 0.8)',
+    color: 'rgba(157, 78, 221, 0.9)',
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -407,18 +421,19 @@ const styles = StyleSheet.create({
   secondaryButton: {
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(0, 255, 255, 0.4)',
+    borderColor: 'rgba(0, 255, 255, 0.5)',
     shadowColor: '#00FFFF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   soundButton: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 255, 255, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 255, 0.3)',
+    borderColor: 'rgba(0, 255, 255, 0.4)',
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
