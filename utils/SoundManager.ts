@@ -99,8 +99,8 @@ class SoundManager {
     }
   }
 
-  setEnabled(enabled: boolean): void {
-    this.toggleMute(!enabled);
+  isSoundMuted(): boolean {
+    return this.isMuted;
   }
 
   async toggleMute(mute: boolean): Promise<void> {
@@ -116,10 +116,6 @@ class SoundManager {
     } catch (error) {
       console.log('Failed to save mute state:', error);
     }
-  }
-
-  isSoundMuted(): boolean {
-    return this.isMuted;
   }
 
   setMasterVolume(volume: number): void {

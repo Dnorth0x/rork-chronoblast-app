@@ -1,66 +1,20 @@
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { soundManager } from "@/utils/SoundManager";
-
-export const unstable_settings = {
-  initialRouteName: "index",
-};
-
-SplashScreen.preventAutoHideAsync();
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    ...FontAwesome.font,
-    'space_font': require('../assets/fonts/space_font.ttf'),
-  });
-
-  useEffect(() => {
-    if (error) {
-      console.error(error);
-      throw error;
-    }
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-      // Initialize sound manager when fonts are loaded
-      soundManager.init();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
   return (
-    <Stack
-      screenOptions={{
-        headerBackTitle: "Back",
-      }}
-    >
-      <Stack.Screen 
-        name="index" 
-        options={{ 
+    <>
+      <StatusBar style="light" backgroundColor="#1C1C1E" />
+      <Stack
+        screenOptions={{
           headerShown: false,
-          title: "ChronoBurst"
-        }} 
-      />
-      <Stack.Screen 
-        name="game" 
-        options={{ 
-          headerShown: false,
-          title: "Game"
-        }} 
-      />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+          contentStyle: { backgroundColor: '#1C1C1E' },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="game" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      </Stack>
+    </>
   );
 }

@@ -1,28 +1,8 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React from 'react';
 import { Stack } from 'expo-router';
-import GameCanvas from '@/components/GameCanvas';
-import GameUI from '@/components/GameUI';
-import Overlay from '@/components/Overlay';
-import { useGameStore } from '@/stores/gameStore';
+import MainMenuScreen from '@/components/MainMenuScreen';
 
-export default function GameScreen() {
-  const { gameStarting, startGame } = useGameStore();
-
-  useEffect(() => {
-    if (gameStarting) {
-      let countdown = 3;
-      const countdownInterval = setInterval(() => {
-        countdown--;
-        if (countdown <= 0) {
-          clearInterval(countdownInterval);
-          useGameStore.setState({ gameStarting: false });
-        }
-      }, 1000);
-      return () => clearInterval(countdownInterval);
-    }
-  }, [gameStarting]);
-
+export default function HomeScreen() {
   return (
     <>
       <Stack.Screen 
@@ -31,18 +11,7 @@ export default function GameScreen() {
           headerShown: false,
         }} 
       />
-      <View style={styles.container}>
-        <GameCanvas />
-        <GameUI />
-        <Overlay />
-      </View>
+      <MainMenuScreen />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-});
