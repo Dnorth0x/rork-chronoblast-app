@@ -4,14 +4,15 @@ import { StyleSheet, View, Text } from 'react-native';
 interface HUDProps {
   score: number;
   health: number;
+  maxHealth: number;
   level: number;
   xp: number;
   xpToNextLevel: number;
   isPlayerInvincible?: boolean;
 }
 
-export default function HUD({ score, health, level, xp, xpToNextLevel, isPlayerInvincible = false }: HUDProps) {
-  const healthPercentage = Math.max(0, health);
+export default function HUD({ score, health, maxHealth, level, xp, xpToNextLevel, isPlayerInvincible = false }: HUDProps) {
+  const healthPercentage = Math.max(0, (health / maxHealth) * 100);
   const healthBarWidth = (healthPercentage / 100) * 120; // 120px max width
   const xpPercentage = (xp / xpToNextLevel) * 100;
   const xpBarWidth = (xpPercentage / 100) * 140; // 140px max width
@@ -21,7 +22,7 @@ export default function HUD({ score, health, level, xp, xpToNextLevel, isPlayerI
       {/* Health Display - Top Left */}
       <View style={styles.healthContainer}>
         <Text style={[styles.healthText, isPlayerInvincible && styles.invincibleText]}>
-          {health}
+          {health}/{maxHealth}
         </Text>
         <View style={styles.healthBarContainer}>
           <View style={styles.healthBarBackground} />
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   },
   healthText: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
   },

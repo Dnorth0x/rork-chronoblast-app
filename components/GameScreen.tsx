@@ -4,10 +4,13 @@ import Player from './Player';
 import Enemy from './Enemy';
 import Projectile from './Projectile';
 import XPOrb from './XPOrb';
+import ChronoShard from './ChronoShard';
 import HUD from './HUD';
 import { EnemyObject } from '@/types';
 import { enemyData, enemyTypes } from '@/game/enemyData';
 import { weaponData } from '@/game/weaponData';
+import { useUpgradeStore } from '@/stores/upgradeStore';
+import { getUpgradeValue } from '@/game/upgradeData';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -32,6 +35,14 @@ interface XPOrbObject {
   size: number;
 }
 
+interface ChronoShardObject {
+  id: string;
+  x: number;
+  y: number;
+  value: number;
+  size: number;
+}
+
 interface PlayerStats {
   level: number;
   xp: number;
@@ -39,6 +50,8 @@ interface PlayerStats {
 }
 
 export default function GameScreen() {
+  const { addShards, getUpgradeLevel } = useUpgradeStore();
+  
   // Use refs for player position to avoid re-renders
   const positionRef = useRef({
     x: screenWidth / 2 - 20, // Center horizontally (minus half player width)
@@ -61,7 +74,13 @@ export default function GameScreen() {
   const [enemies, setEnemies] = useState<EnemyObject[]>([]);
   const [projectiles, setProjectiles] = useState<ProjectileObject[]>([]);
   const [xpOrbs, setXpOrbs] = useState<XPOrbObject[]>([]);
-  const [playerHealth, setPlayerHealth] = useState(100);
+  const [chronoShards, setChronoShards] = useState<ChronoShardObject[]>([]);
+  
+  // Apply upgrades to base stats
+  const baseHealth = 100 + getUpgradeValue('player_health', getUpgradeLevel('player_health'));
+  const [playerHealth, setPlayerHealth] = useState(baseHealth);
+  const [maxPlayerHealth] = useState(baseHealth);
+  
   const [playerStats, setPlayerStats] = useState<PlayerStats>({
     level: 1,
     xp: 0,
@@ -80,6 +99,12 @@ export default function GameScreen() {
   const enemyIdCounter = useRef(0);
   const projectileIdCounter = useRef(0);
   const xpOrbIdCounter = useRef(0);
+  const shardIdCounter = useRef(0);
+
+  // Calculate movement speed with upgrades
+  const baseMovementSpeed = 0.8;
+  const speedMultiplier = 1 + getUpgradeValue('player_speed', getUpgradeLevel('player_speed'));
+  const movementSpeed = baseMovementSpeed * speedMultiplier;
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -233,6 +258,8 @@ export default function GameScreen() {
     if (!nearestEnemy) return;
     
     const weapon = weaponData.basic_orb;
+    const weaponDamage = weapon.damage + getUpgradeValue('weapon_damage', getUpgradeLevel('weapon_damage'));
+    
     const playerCenterX = positionRef.current.x + 20;
     const playerCenterY = positionRef.current.y + 20;
     const enemyCenterX = nearestEnemy.x + nearestEnemy.size / 2;
@@ -248,7 +275,7 @@ export default function GameScreen() {
       y: playerCenterY,
       vx,
       vy,
-      damage: weapon.damage,
+      damage: weaponDamage,
       size: weapon.projectileSize,
       color: weapon.color,
       range: weapon.range,
@@ -269,6 +296,19 @@ export default function GameScreen() {
     };
     
     setXpOrbs(prevOrbs => [...prevOrbs, newXPOrb]);
+  };
+
+  // Function to spawn ChronoShard
+  const spawnChronoShard = (x: number, y: number, value: number) => {
+    const newShard: ChronoShardObject = {
+      id: `shard-${shardIdCounter.current++}`,
+      x,
+      y,
+      value,
+      size: 16,
+    };
+    
+    setChronoShards(prevShards => [...prevShards, newShard]);
   };
 
   // Function to handle level up
@@ -312,6 +352,7 @@ export default function GameScreen() {
     const hitProjectileIds: string[] = [];
     const hitEnemyIds: string[] = [];
     const newXPOrbs: XPOrbObject[] = [];
+    const newShards: ChronoShardObject[] = [];
 
     projectiles.forEach(projectile => {
       enemies.forEach(enemy => {
@@ -333,8 +374,12 @@ export default function GameScreen() {
           
           if (updatedEnemy.health <= 0) {
             hitEnemyIds.push(enemy.id);
+            
             // Spawn XP orb where enemy died
-            const xpValue = enemy.type === 'brute' ? 15 : 10;
+            const baseXpValue = enemy.type === 'brute' ? 15 : 10;
+            const xpMultiplier = 1 + getUpgradeValue('xp_multiplier', getUpgradeLevel('xp_multiplier'));
+            const xpValue = Math.floor(baseXpValue * xpMultiplier);
+            
             newXPOrbs.push({
               id: `xp-${xpOrbIdCounter.current++}`,
               x: enemyCenterX,
@@ -342,6 +387,18 @@ export default function GameScreen() {
               value: xpValue,
               size: 12,
             });
+
+            // 15% chance to drop ChronoShard
+            if (Math.random() < 0.15) {
+              const shardValue = enemy.type === 'brute' ? 3 : 1;
+              newShards.push({
+                id: `shard-${shardIdCounter.current++}`,
+                x: enemyCenterX + (Math.random() - 0.5) * 30,
+                y: enemyCenterY + (Math.random() - 0.5) * 30,
+                value: shardValue,
+                size: 16,
+              });
+            }
           } else {
             // Update enemy health
             setEnemies(prevEnemies => 
@@ -369,6 +426,11 @@ export default function GameScreen() {
     // Add new XP orbs
     if (newXPOrbs.length > 0) {
       setXpOrbs(prevOrbs => [...prevOrbs, ...newXPOrbs]);
+    }
+
+    // Add new ChronoShards
+    if (newShards.length > 0) {
+      setChronoShards(prevShards => [...prevShards, ...newShards]);
     }
   };
 
@@ -413,7 +475,38 @@ export default function GameScreen() {
     }
   };
 
-  // Weapon firing loop
+  // Collision detection function for player vs ChronoShards
+  const checkPlayerShardCollisions = () => {
+    const playerCenterX = positionRef.current.x + 20;
+    const playerCenterY = positionRef.current.y + 20;
+    const playerRadius = 20;
+    const collectedShardIds: string[] = [];
+    let totalShards = 0;
+
+    chronoShards.forEach(shard => {
+      const distance = Math.hypot(
+        playerCenterX - shard.x,
+        playerCenterY - shard.y
+      );
+
+      if (distance < playerRadius + shard.size / 2) {
+        collectedShardIds.push(shard.id);
+        totalShards += shard.value;
+      }
+    });
+
+    if (collectedShardIds.length > 0) {
+      // Remove collected shards
+      setChronoShards(prevShards => 
+        prevShards.filter(shard => !collectedShardIds.includes(shard.id))
+      );
+
+      // Add shards to persistent store
+      addShards(totalShards);
+    }
+  };
+
+  // Weapon firing loop with upgrade-modified fire rate
   useEffect(() => {
     if (isGameOver) {
       if (weaponFireRef.current) {
@@ -423,9 +516,13 @@ export default function GameScreen() {
       return;
     }
 
+    const baseFireRate = weaponData.basic_orb.fireRate;
+    const fireRateReduction = getUpgradeValue('weapon_fire_rate', getUpgradeLevel('weapon_fire_rate'));
+    const actualFireRate = Math.max(100, baseFireRate - fireRateReduction);
+
     const weaponFireId = setInterval(() => {
       fireProjectile();
-    }, weaponData.basic_orb.fireRate);
+    }, actualFireRate);
     
     weaponFireRef.current = weaponFireId;
 
@@ -529,13 +626,18 @@ export default function GameScreen() {
           triggerScreenShake();
           setIsPlayerInvincible(true);
           
+          // Apply invincibility duration upgrade
+          const baseDuration = 1000;
+          const durationBonus = getUpgradeValue('invincibility_duration', getUpgradeLevel('invincibility_duration'));
+          const invincibilityDuration = baseDuration + durationBonus;
+          
           if (invincibilityTimeoutRef.current) {
             clearTimeout(invincibilityTimeoutRef.current);
           }
           
           invincibilityTimeoutRef.current = setTimeout(() => {
             setIsPlayerInvincible(false);
-          }, 1000);
+          }, invincibilityDuration);
           
           setPlayerHealth(prevHealth => {
             const newHealth = prevHealth - collidedEnemyIds.length;
@@ -588,6 +690,9 @@ export default function GameScreen() {
 
       // Check player-XP orb collisions
       checkPlayerXPCollisions();
+
+      // Check player-ChronoShard collisions
+      checkPlayerShardCollisions();
     }, 16); // ~60 FPS
 
     gameLoopRef.current = gameLoopId;
@@ -595,7 +700,7 @@ export default function GameScreen() {
     return () => {
       clearInterval(gameLoopId);
     };
-  }, [isGameOver, isPlayerInvincible, enemies, projectiles, xpOrbs]);
+  }, [isGameOver, isPlayerInvincible, enemies, projectiles, xpOrbs, chronoShards]);
 
   // Clean up all timers on unmount
   useEffect(() => {
@@ -674,10 +779,21 @@ export default function GameScreen() {
           value={orb.value}
         />
       ))}
+
+      {chronoShards.map(shard => (
+        <ChronoShard
+          key={shard.id}
+          x={shard.x}
+          y={shard.y}
+          size={shard.size}
+          value={shard.value}
+        />
+      ))}
       
       <HUD 
         score={timeElapsed}
         health={playerHealth}
+        maxHealth={maxPlayerHealth}
         level={playerStats.level}
         xp={playerStats.xp}
         xpToNextLevel={playerStats.xpToNextLevel}
