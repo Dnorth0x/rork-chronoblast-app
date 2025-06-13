@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
-import CosmeticShop from '@/components/CosmeticShop';
+import CosmeticShop from '@/components/Shop';
 
 export default function ShopScreen() {
   return (
