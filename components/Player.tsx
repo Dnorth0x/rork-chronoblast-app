@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { PlayerProps } from '@/types';
 
-const Player = React.forwardRef<View, PlayerProps>(({ x, y, color, isInvincible }, ref) => {
+const Player = React.forwardRef<Animated.View, PlayerProps>(({ x, y, color, isInvincible }, ref) => {
   const [opacity, setOpacity] = useState(1);
 
   // Flashing effect when invincible
@@ -30,7 +31,7 @@ const Player = React.forwardRef<View, PlayerProps>(({ x, y, color, isInvincible 
   }, [isInvincible]);
 
   return (
-    <View 
+    <Animated.View 
       ref={ref}
       style={[
         styles.player,
