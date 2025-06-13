@@ -140,7 +140,7 @@ export default function MainMenuScreen() {
 
   return (
     <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80' }}
+      source={require('@/assets/images/background.png')}
       style={styles.container}
       resizeMode="cover"
     >
@@ -342,11 +342,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 20,
     letterSpacing: 3,
-    fontFamily: Platform.select({
-      ios: 'SpaceFont',
-      android: 'SpaceFont',
-      default: 'SpaceFont',
-    }),
+    fontFamily: 'space_font',
   },
   subtitle: {
     fontSize: 16,
