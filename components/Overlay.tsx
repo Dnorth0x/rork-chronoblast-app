@@ -1,12 +1,13 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { Audio } from 'expo-av';
-import Colors from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useGameStore } from '@/stores/gameStore';
 import { useCosmeticsStore } from '@/stores/cosmeticsStore';
 import { PT } from '@/constants/gameConfig';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import AnimatedButton from '@/components/AnimatedButton';
 
 // Overlay Sound Manager
 class OverlaySoundManager {
@@ -146,7 +147,7 @@ const Overlay: React.FC = () => {
     return (
       <View style={[styles.overlay, styles.active]}>
         <LinearGradient
-          colors={['rgba(0, 0, 0, 0.8)', 'rgba(26, 26, 46, 0.9)']}
+          colors={['rgba(0, 0, 0, 0.8)', 'rgba(30, 27, 75, 0.9)']}
           style={styles.overlayGradient}
         >
           <Text style={styles.countdown}>Get Ready!</Text>
@@ -162,7 +163,7 @@ const Overlay: React.FC = () => {
       return (
         <View style={[styles.overlay, styles.active]}>
           <LinearGradient
-            colors={['rgba(0, 0, 0, 0.9)', 'rgba(26, 26, 46, 0.95)']}
+            colors={['rgba(0, 0, 0, 0.9)', 'rgba(30, 27, 75, 0.95)']}
             style={styles.overlayGradient}
           >
             <View style={styles.gameOverContainer}>
@@ -176,7 +177,7 @@ const Overlay: React.FC = () => {
               {gameEndReward > 0 && (
                 <View style={styles.rewardContainer}>
                   <LinearGradient
-                    colors={['rgba(255, 215, 0, 0.2)', 'rgba(255, 215, 0, 0.1)']}
+                    colors={['rgba(56, 189, 248, 0.2)', 'rgba(56, 189, 248, 0.1)']}
                     style={styles.rewardGradient}
                   >
                     <Text style={styles.rewardText}>💎 +{gameEndReward} CC Earned!</Text>
@@ -184,23 +185,19 @@ const Overlay: React.FC = () => {
                 </View>
               )}
               <View style={styles.gameOverButtons}>
-                <TouchableOpacity 
-                  onPress={handleStartGame} 
-                  style={[styles.button, styles.primaryButton]}
-                >
-                  <LinearGradient
-                    colors={[Colors.light.tint, '#00CCCC']}
-                    style={styles.buttonGradient}
-                  >
-                    <Text style={styles.buttonText}>Play Again</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => handleButtonPress(goToMainMenu)} 
-                  style={[styles.button, styles.secondaryButton]}
-                >
-                  <Text style={[styles.buttonText, styles.secondaryButtonText]}>Main Menu</Text>
-                </TouchableOpacity>
+                <AnimatedButton 
+                  title="Play Again"
+                  onPress={handleStartGame}
+                  size="medium"
+                  style={styles.gameOverButton}
+                />
+                <AnimatedButton 
+                  title="Main Menu"
+                  onPress={() => handleButtonPress(goToMainMenu)}
+                  variant="outline"
+                  size="medium"
+                  style={styles.gameOverButton}
+                />
               </View>
               <Text style={styles.highScore}>High Score: {formatNumber(highScore)}</Text>
             </View>
@@ -212,7 +209,7 @@ const Overlay: React.FC = () => {
       return (
         <View style={[styles.overlay, styles.active]}>
           <LinearGradient
-            colors={['rgba(0, 0, 0, 0.95)', 'rgba(26, 26, 46, 0.98)']}
+            colors={['rgba(0, 0, 0, 0.95)', 'rgba(30, 27, 75, 0.98)']}
             style={styles.overlayGradient}
           >
             <View style={styles.tutorialContainer}>
@@ -223,15 +220,15 @@ const Overlay: React.FC = () => {
                 showsVerticalScrollIndicator={false}
               >
                 <Text style={styles.tutorialHeading}>🎮 Controls:</Text>
-                <Text style={styles.tutorialText}>• Drag your finger to guide your <Text style={{ color: Colors.light.tint }}>cyan orb</Text></Text>
-                <Text style={styles.tutorialText}>• Tap <Text style={{ color: Colors.light.tint }}>Dash</Text> button for quick movement (has cooldown)</Text>
+                <Text style={styles.tutorialText}>• Drag your finger to guide your <Text style={{ color: Colors.accent }}>cyan orb</Text></Text>
+                <Text style={styles.tutorialText}>• Tap <Text style={{ color: Colors.accent }}>Dash</Text> button for quick movement (has cooldown)</Text>
                 
                 <Text style={styles.tutorialHeading}>🎯 Objective:</Text>
                 <Text style={styles.tutorialText}>• Collect particles before time runs out!</Text>
-                <Text style={styles.tutorialText}>• Chain collections for <Text style={{ color: '#FFD700' }}>Combos</Text> to multiply your score!</Text>
+                <Text style={styles.tutorialText}>• Chain collections for <Text style={{ color: Colors.warning }}>Combos</Text> to multiply your score!</Text>
                 
                 <Text style={styles.tutorialHeading}>✨ Particles:</Text>
-                <Text style={styles.tutorialText}>• <Text style={{ color: Colors.light.secondary }}>Normal (Pink):</Text> Standard points</Text>
+                <Text style={styles.tutorialText}>• <Text style={{ color: Colors.secondary }}>Normal (Pink):</Text> Standard points</Text>
                 <Text style={styles.tutorialText}>• <Text style={{ color: '#39FF14' }}>Fast (Green):</Text> More points, moves quickly</Text>
                 <Text style={styles.tutorialText}>• <Text style={{ color: '#FFA500' }}>Large Bonus (Orange):</Text> Lots of points!</Text>
                 <Text style={styles.tutorialText}>• <Text style={{ color: '#87CEEB' }}>Time Bonus (Blue):</Text> Adds seconds to clock</Text>
@@ -248,17 +245,11 @@ const Overlay: React.FC = () => {
                 
                 <Text style={styles.tutorialHeading}>🏆 Good Luck, Collector!</Text>
               </ScrollView>
-              <TouchableOpacity 
-                onPress={() => handleButtonPress(() => setShowTutorial(false))} 
-                style={[styles.button, styles.primaryButton]}
-              >
-                <LinearGradient
-                  colors={[Colors.light.tint, '#00CCCC']}
-                  style={styles.buttonGradient}
-                >
-                  <Text style={styles.buttonText}>Got It!</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <AnimatedButton 
+                title="Got It!"
+                onPress={() => handleButtonPress(() => setShowTutorial(false))}
+                size="medium"
+              />
             </View>
           </LinearGradient>
         </View>
@@ -268,7 +259,7 @@ const Overlay: React.FC = () => {
       return (
         <View style={[styles.overlay, styles.active]}>
           <LinearGradient
-            colors={['rgba(0, 0, 0, 0.95)', 'rgba(26, 26, 46, 0.98)']}
+            colors={['rgba(0, 0, 0, 0.95)', 'rgba(30, 27, 75, 0.98)']}
             style={styles.overlayGradient}
           >
             <View style={styles.statsContainer}>
@@ -303,17 +294,12 @@ const Overlay: React.FC = () => {
                   <Text style={styles.statValue}>{formatNumber(highScore)}</Text>
                 </View>
               </ScrollView>
-              <TouchableOpacity 
-                onPress={() => handleButtonPress(() => setShowStats(false))} 
-                style={[styles.button, styles.primaryButton]}
-              >
-                <LinearGradient
-                  colors={[Colors.light.tint, '#00CCCC']}
-                  style={styles.buttonGradient}
-                >
-                  <Text style={styles.buttonText}>Back</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <AnimatedButton 
+                title="Back"
+                onPress={() => handleButtonPress(() => setShowStats(false))}
+                variant="outline"
+                size="medium"
+              />
             </View>
           </LinearGradient>
         </View>
@@ -323,7 +309,7 @@ const Overlay: React.FC = () => {
       return (
         <View style={[styles.overlay, styles.active]}>
           <LinearGradient
-            colors={['rgba(0, 0, 0, 0.9)', 'rgba(26, 26, 46, 0.95)']}
+            colors={['rgba(0, 0, 0, 0.9)', 'rgba(30, 27, 75, 0.95)']}
             style={styles.overlayGradient}
           >
             <View style={styles.mainMenuContainer}>
@@ -337,7 +323,7 @@ const Overlay: React.FC = () => {
               <View style={styles.currencySection}>
                 <View style={styles.currencyDisplay}>
                   <LinearGradient
-                    colors={['rgba(0, 255, 255, 0.1)', 'rgba(0, 255, 255, 0.05)']}
+                    colors={['rgba(56, 189, 248, 0.1)', 'rgba(56, 189, 248, 0.05)']}
                     style={styles.currencyGradient}
                   >
                     <Text style={styles.currencyIcon}>💎</Text>
@@ -351,52 +337,38 @@ const Overlay: React.FC = () => {
               
               {/* Main Action */}
               <View style={styles.primaryActionSection}>
-                <TouchableOpacity 
-                  onPress={handleStartGame} 
-                  style={[styles.button, styles.primaryButton, styles.startButton]}
-                >
-                  <LinearGradient
-                    colors={[Colors.light.tint, '#00CCCC', '#008B8B']}
-                    style={styles.buttonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={[styles.buttonText, styles.startButtonText]}>Start Game</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                <AnimatedButton 
+                  title="Start Game"
+                  onPress={handleStartGame}
+                  size="large"
+                  style={styles.startButton}
+                />
               </View>
               
               {/* Secondary Actions */}
               <View style={styles.secondaryActionsSection}>
                 <View style={styles.buttonRow}>
-                  <TouchableOpacity 
-                    onPress={() => handleButtonPress(navigateToShop)} 
-                    style={[styles.button, styles.secondaryButton, styles.halfButton]}
-                  >
-                    <View style={styles.buttonContent}>
-                      <Text style={styles.secondaryButtonIcon}>🛍️</Text>
-                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>Shop</Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={() => handleButtonPress(() => setShowStats(true), 'menu_open')} 
-                    style={[styles.button, styles.secondaryButton, styles.halfButton]}
-                  >
-                    <View style={styles.buttonContent}>
-                      <Text style={styles.secondaryButtonIcon}>📊</Text>
-                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>Stats</Text>
-                    </View>
-                  </TouchableOpacity>
+                  <AnimatedButton 
+                    title="🛍️ Shop"
+                    onPress={() => handleButtonPress(navigateToShop)}
+                    variant="secondary"
+                    size="medium"
+                    style={styles.halfButton}
+                  />
+                  <AnimatedButton 
+                    title="📊 Stats"
+                    onPress={() => handleButtonPress(() => setShowStats(true), 'menu_open')}
+                    variant="secondary"
+                    size="medium"
+                    style={styles.halfButton}
+                  />
                 </View>
-                <TouchableOpacity 
-                  onPress={() => handleButtonPress(() => setShowTutorial(true), 'menu_open')} 
-                  style={[styles.button, styles.tertiaryButton]}
-                >
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.tertiaryButtonIcon}>❓</Text>
-                    <Text style={[styles.buttonText, styles.tertiaryButtonText]}>How to Play</Text>
-                  </View>
-                </TouchableOpacity>
+                <AnimatedButton 
+                  title="❓ How to Play"
+                  onPress={() => handleButtonPress(() => setShowTutorial(true), 'menu_open')}
+                  variant="outline"
+                  size="medium"
+                />
               </View>
               
               {/* Footer */}
@@ -413,7 +385,7 @@ const Overlay: React.FC = () => {
     return (
       <View style={[styles.overlay, styles.active]}>
         <LinearGradient
-          colors={['rgba(0, 0, 0, 0.9)', 'rgba(26, 26, 46, 0.95)']}
+          colors={['rgba(0, 0, 0, 0.9)', 'rgba(30, 27, 75, 0.95)']}
           style={styles.overlayGradient}
         >
           <View style={styles.pauseContainer}>
@@ -425,23 +397,19 @@ const Overlay: React.FC = () => {
               )}
             </View>
             <View style={styles.pauseButtons}>
-              <TouchableOpacity 
-                onPress={() => handleButtonPress(() => useGameStore.setState({ isPaused: false }))} 
-                style={[styles.button, styles.primaryButton]}
-              >
-                <LinearGradient
-                  colors={[Colors.light.tint, '#00CCCC']}
-                  style={styles.buttonGradient}
-                >
-                  <Text style={styles.buttonText}>Resume</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => handleButtonPress(goToMainMenu)} 
-                style={[styles.button, styles.secondaryButton]}
-              >
-                <Text style={[styles.buttonText, styles.secondaryButtonText]}>Main Menu</Text>
-              </TouchableOpacity>
+              <AnimatedButton 
+                title="Resume"
+                onPress={() => handleButtonPress(() => useGameStore.setState({ isPaused: false }))}
+                size="medium"
+                style={styles.pauseButton}
+              />
+              <AnimatedButton 
+                title="Main Menu"
+                onPress={() => handleButtonPress(goToMainMenu)}
+                variant="outline"
+                size="medium"
+                style={styles.pauseButton}
+              />
             </View>
             <Text style={styles.highScore}>High Score: {formatNumber(highScore)}</Text>
           </View>
@@ -481,8 +449,8 @@ const styles = StyleSheet.create({
   mainMenuContainer: {
     width: '100%',
     height: '100%',
-    paddingHorizontal: 32,
-    paddingVertical: 80,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xxl * 2,
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -493,23 +461,23 @@ const styles = StyleSheet.create({
     minHeight: 120,
   },
   title: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: Colors.light.tint,
-    textShadowColor: Colors.light.tint,
+    fontSize: FontSizes.title + 12,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    textShadowColor: Colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 20,
-    marginBottom: 16,
+    marginBottom: Spacing.md,
     textAlign: 'center',
     letterSpacing: 2,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#b0b0b0',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.main,
+    color: Colors.muted,
     textAlign: 'center',
     lineHeight: 26,
-    paddingHorizontal: 20,
-    fontWeight: '400',
+    paddingHorizontal: Spacing.lg,
     maxWidth: 320,
   },
   currencySection: {
@@ -526,36 +494,32 @@ const styles = StyleSheet.create({
   currencyGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    borderRadius: 24,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1.5,
-    borderColor: 'rgba(0, 255, 255, 0.25)',
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
     minWidth: 220,
     justifyContent: 'center',
   },
   currencyIcon: {
     fontSize: 28,
-    marginRight: 16,
+    marginRight: Spacing.md,
   },
   currencyInfo: {
     alignItems: 'flex-start',
   },
   currencyAmount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.tint,
+    fontSize: FontSizes.subtitle,
+    fontFamily: Fonts.bold,
+    color: Colors.accent,
     letterSpacing: 0.5,
   },
   currencyLabel: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: FontSizes.small,
+    fontFamily: Fonts.main,
+    color: Colors.muted,
     marginTop: 2,
-    fontWeight: '500',
   },
   primaryActionSection: {
     width: '100%',
@@ -564,10 +528,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 80,
   },
+  startButton: {
+    width: '100%',
+  },
   secondaryActionsSection: {
     width: '100%',
     alignItems: 'center',
-    gap: 16,
+    gap: Spacing.md,
     flex: 0.25,
     justifyContent: 'center',
     minHeight: 140,
@@ -575,7 +542,10 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     width: '100%',
-    gap: 16,
+    gap: Spacing.md,
+  },
+  halfButton: {
+    flex: 1,
   },
   footerSection: {
     alignItems: 'center',
@@ -583,187 +553,116 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 40,
   },
-  
-  // Enhanced Button Styles
-  button: {
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonGradient: {
-    width: '100%',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  primaryButton: {
-    shadowColor: Colors.light.tint,
-  },
-  startButton: {
-    width: '100%',
-    paddingVertical: 20,
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-  },
-  startButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a2e',
-    letterSpacing: 1,
-  },
-  secondaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  halfButton: {
-    flex: 1,
-    paddingVertical: 16,
-  },
-  tertiaryButton: {
-    width: '100%',
-    paddingVertical: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: 'transparent',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  secondaryButtonText: {
-    color: '#e0e0e0',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  secondaryButtonIcon: {
-    fontSize: 18,
-  },
-  tertiaryButtonText: {
-    color: '#ccc',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  tertiaryButtonIcon: {
-    fontSize: 18,
-  },
   highScore: {
-    fontSize: 14,
-    color: '#777',
-    fontWeight: '500',
+    fontSize: FontSizes.small,
+    fontFamily: Fonts.main,
+    color: Colors.muted,
     letterSpacing: 0.5,
   },
   
   // Game Over Styles
   gameOverContainer: {
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing.xl,
   },
   scoreContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   score: {
-    fontSize: 20,
-    color: '#f0f0f0',
+    fontSize: FontSizes.subtitle,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
     textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '600',
+    marginBottom: Spacing.sm,
   },
   comboScore: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.warning,
   },
   rewardContainer: {
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   rewardGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.25)',
+    borderColor: 'rgba(56, 189, 248, 0.25)',
   },
   rewardText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFD700',
-    textShadowColor: '#FFD700',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.accent,
+    textShadowColor: Colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 5,
   },
   gameOverButtons: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  gameOverButton: {
+    flex: 1,
   },
   
   // Pause Styles
   pauseContainer: {
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing.xl,
   },
   pauseInfo: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xl,
   },
   pauseScore: {
-    fontSize: 18,
-    color: '#f0f0f0',
-    marginBottom: 8,
-    fontWeight: '600',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   pauseCombo: {
-    fontSize: 16,
-    color: '#FFD700',
-    fontWeight: '600',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.warning,
   },
   pauseButtons: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  pauseButton: {
+    flex: 1,
   },
   
   // Tutorial Styles
   tutorialContainer: {
     width: '100%',
     height: '100%',
-    paddingHorizontal: 24,
-    paddingVertical: 60,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xxl,
   },
   tutorialContent: {
     flex: 1,
-    marginVertical: 24,
+    marginVertical: Spacing.xl,
   },
   tutorialScrollContent: {
-    paddingBottom: 20,
+    paddingBottom: Spacing.lg,
   },
   tutorialHeading: {
-    fontSize: 18,
-    color: Colors.light.tint,
-    marginTop: 20,
-    marginBottom: 12,
-    fontWeight: '700',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.accent,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   tutorialText: {
-    fontSize: 15,
-    marginBottom: 10,
-    color: '#d0d0d0',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.main,
+    marginBottom: Spacing.sm,
+    color: Colors.text,
     lineHeight: 22,
   },
   
@@ -771,52 +670,53 @@ const styles = StyleSheet.create({
   statsContainer: {
     width: '100%',
     height: '100%',
-    paddingHorizontal: 24,
-    paddingVertical: 60,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xxl,
   },
   statsScrollView: {
     flex: 1,
-    marginVertical: 24,
+    marginVertical: Spacing.xl,
   },
   statsScrollContent: {
-    paddingBottom: 20,
+    paddingBottom: Spacing.lg,
   },
   statItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   statLabel: {
-    fontSize: 16,
-    color: '#e0e0e0',
-    fontWeight: '500',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.main,
+    color: Colors.text,
   },
   statValue: {
-    fontSize: 16,
-    color: Colors.light.tint,
-    fontWeight: '700',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.bold,
+    color: Colors.accent,
   },
   
   // Countdown Styles
   countdown: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: Colors.light.tint,
-    textShadowColor: Colors.light.tint,
+    fontSize: FontSizes.title + 12,
+    fontFamily: Fonts.bold,
+    color: Colors.accent,
+    textShadowColor: Colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   countdownSubtext: {
-    fontSize: 18,
-    color: '#e0e0e0',
+    fontSize: FontSizes.body,
+    fontFamily: Fonts.main,
+    color: Colors.text,
     opacity: 0.8,
   },
 });

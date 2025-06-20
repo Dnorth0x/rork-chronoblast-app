@@ -1,6 +1,10 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import MainMenuScreen from '@/components/MainMenuScreen';
+import { View, StyleSheet } from 'react-native';
+import GameCanvas from '@/components/GameCanvas';
+import GameUI from '@/components/GameUI';
+import Overlay from '@/components/Overlay';
+import { Colors } from '@/constants/theme';
 
 export default function HomeScreen() {
   return (
@@ -11,7 +15,18 @@ export default function HomeScreen() {
           headerShown: false,
         }} 
       />
-      <MainMenuScreen />
+      <View style={styles.container}>
+        <GameCanvas />
+        <GameUI />
+        <Overlay />
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+});
