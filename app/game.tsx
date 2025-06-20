@@ -1,2 +1,6 @@
+import React from 'react';
 import GameScreen from '../components/GameScreen';
-export default GameScreen;
+
+export default function Game() {
+  return <GameScreen />;
+}
