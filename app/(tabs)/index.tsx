@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: -1, // Ensures canvas is behind all other content
   },
   gameContent: {
     flex: 1,
