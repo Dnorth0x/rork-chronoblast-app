@@ -69,6 +69,7 @@ class UISoundManager {
 const uiSoundManager = new UISoundManager();
 
 const GameUI: React.FC = () => {
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
   const pathname = usePathname();
   const { 
     score, 
@@ -85,15 +86,21 @@ const GameUI: React.FC = () => {
     player 
   } = useGameStore();
 
-  // Initialize UI sound manager
+  // Initialize UI sound manager - moved to top level
   React.useEffect(() => {
     uiSoundManager.init();
   }, []);
 
+  // Play sound when dash becomes ready - moved to top level
+  React.useEffect(() => {
+    if (player.dashReady && gameActive && !isPaused) {
+      uiSoundManager.play('dash_ready');
+    }
+  }, [player.dashReady, gameActive, isPaused]);
+
+  // CONDITIONAL LOGIC AFTER ALL HOOKS
   // Only show GameUI on the main game screen (index route) - more specific check
-  if (pathname !== '/' && !pathname.endsWith('/(tabs)') && !pathname.endsWith('/index')) {
-    return null;
-  }
+  const shouldShowUI = pathname === '/' || pathname.endsWith('/(tabs)') || pathname.endsWith('/index');
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -123,12 +130,10 @@ const GameUI: React.FC = () => {
     }
   };
 
-  // Play sound when dash becomes ready
-  React.useEffect(() => {
-    if (player.dashReady && gameActive && !isPaused) {
-      uiSoundManager.play('dash_ready');
-    }
-  }, [player.dashReady, gameActive, isPaused]);
+  // CONDITIONAL RENDERING IN RETURN STATEMENT
+  if (!shouldShowUI) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
