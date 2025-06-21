@@ -10,6 +10,7 @@ import Enemy from './Enemy';
 import Projectile from './Projectile';
 import XPOrb from './XPOrb';
 import ChronoShard from './ChronoShard';
+import Explosion from './Explosion';
 
 // Sound Manager for Game Events
 class GameSoundManager {
@@ -57,6 +58,10 @@ class GameSoundManager {
         case 'combo':
           frequency = 1000;
           duration = 250;
+          break;
+        case 'explosion':
+          frequency = 200;
+          duration = 400;
           break;
         case 'game_over':
           frequency = 300;

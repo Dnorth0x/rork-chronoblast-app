@@ -6,6 +6,7 @@ import Enemy from './Enemy';
 import Projectile from './Projectile';
 import XPOrb from './XPOrb';
 import ChronoShard from './ChronoShard';
+import Explosion from './Explosion';
 import HUD from './HUD';
 import { gameReducer, initialGameState } from '@/game/gameReducer';
 import { useUpgradeStore } from '@/stores/upgradeStore';
@@ -39,6 +40,7 @@ export default function GameScreen() {
   // Sound tracking refs
   const lastPlayerLevel = useRef(1);
   const gameStartSoundPlayed = useRef(false);
+  const lastExplosionCount = useRef(0);
 
   // Calculate movement speed with upgrades
   const baseMovementSpeed = 0.8;
@@ -62,6 +64,16 @@ export default function GameScreen() {
       lastPlayerLevel.current = gameState.playerStats.level;
     }
   }, [gameState.playerStats.level]);
+
+  // Explosion sound effect
+  useEffect(() => {
+    if (gameState.explosions.length > lastExplosionCount.current) {
+      soundManager.playGameSound('explosion');
+      lastExplosionCount.current = gameState.explosions.length;
+    } else {
+      lastExplosionCount.current = gameState.explosions.length;
+    }
+  }, [gameState.explosions.length]);
 
   // Game over sound effect
   useEffect(() => {
@@ -333,6 +345,13 @@ export default function GameScreen() {
             y={shard.y + shard.size / 2}
             size={shard.size}
             value={shard.value}
+          />
+        ))}
+
+        {gameState.explosions.map(explosion => (
+          <Explosion
+            key={explosion.id}
+            particles={explosion.particles}
           />
         ))}
       </Canvas>

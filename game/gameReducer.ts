@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { GameState, GameAction, EnemyObject, ProjectileObject } from '@/types/gameState';
+import { GameState, GameAction, EnemyObject, ProjectileObject, ExplosionObject, ExplosionParticle } from '@/types/gameState';
 import { enemyData, enemyTypes } from './enemyData';
 import { weaponData } from './weaponData';
 
@@ -22,6 +22,7 @@ export const initialGameState: GameState = {
   projectiles: [],
   xpOrbs: [],
   chronoShards: [],
+  explosions: [],
   isGameOver: false,
   timeElapsed: 0,
   spawnRate: 2000,
@@ -29,6 +30,7 @@ export const initialGameState: GameState = {
   projectileIdCounter: 0,
   xpOrbIdCounter: 0,
   shardIdCounter: 0,
+  explosionIdCounter: 0,
 };
 
 // Helper functions for game logic
@@ -77,6 +79,59 @@ const findNearestEnemy = (playerPos: { x: number; y: number }, enemies: EnemyObj
   return nearestDistance <= weaponData.basic_orb.range ? nearestEnemy : null;
 };
 
+const createExplosion = (x: number, y: number, color: string = '#FF6B35', explosionId: number): ExplosionObject => {
+  const particleCount = 8 + Math.floor(Math.random() * 4); // 8-12 particles
+  const particles: ExplosionParticle[] = [];
+  
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+    const speed = 2 + Math.random() * 3; // Random speed between 2-5
+    const radius = 2 + Math.random() * 3; // Random radius between 2-5
+    const life = 30 + Math.random() * 20; // Life between 30-50 frames
+    
+    particles.push({
+      id: `particle-${explosionId}-${i}`,
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius,
+      color,
+      life,
+      maxLife: life,
+      alpha: 1.0,
+    });
+  }
+  
+  return {
+    id: `explosion-${explosionId}`,
+    x,
+    y,
+    particles,
+    createdAt: Date.now(),
+  };
+};
+
+const updateExplosions = (explosions: ExplosionObject[]): ExplosionObject[] => {
+  return explosions.map(explosion => ({
+    ...explosion,
+    particles: explosion.particles.map(particle => {
+      const newLife = particle.life - 1;
+      const alpha = Math.max(0, newLife / particle.maxLife);
+      
+      return {
+        ...particle,
+        x: particle.x + particle.vx,
+        y: particle.y + particle.vy,
+        vx: particle.vx * 0.98, // Slight deceleration
+        vy: particle.vy * 0.98,
+        life: newLife,
+        alpha,
+      };
+    }).filter(particle => particle.life > 0),
+  })).filter(explosion => explosion.particles.length > 0);
+};
+
 const checkPlayerEnemyCollisions = (playerPos: { x: number; y: number }, enemies: EnemyObject[]) => {
   const playerCenterX = playerPos.x + 20;
   const playerCenterY = playerPos.y + 20;
@@ -102,11 +157,13 @@ const checkPlayerEnemyCollisions = (playerPos: { x: number; y: number }, enemies
   return collidedEnemyIds;
 };
 
-const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies: EnemyObject[]) => {
+const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies: EnemyObject[], explosionIdCounter: number) => {
   const hitProjectileIds: string[] = [];
   const hitEnemyIds: string[] = [];
   const newXPOrbs: any[] = [];
   const newShards: any[] = [];
+  const newExplosions: ExplosionObject[] = [];
+  let currentExplosionId = explosionIdCounter;
 
   projectiles.forEach(projectile => {
     enemies.forEach(enemy => {
@@ -127,6 +184,10 @@ const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies
         
         if (updatedEnemy.health <= 0) {
           hitEnemyIds.push(enemy.id);
+          
+          // Create explosion at enemy position
+          const explosionColor = enemy.type === 'brute' ? '#FF4444' : '#FF6B35';
+          newExplosions.push(createExplosion(enemyCenterX, enemyCenterY, explosionColor, currentExplosionId++));
           
           const baseXpValue = enemy.type === 'brute' ? 15 : 10;
           newXPOrbs.push({
@@ -152,7 +213,7 @@ const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies
     });
   });
 
-  return { hitProjectileIds, hitEnemyIds, newXPOrbs, newShards };
+  return { hitProjectileIds, hitEnemyIds, newXPOrbs, newShards, newExplosions, newExplosionIdCounter: currentExplosionId };
 };
 
 const checkPlayerXPCollisions = (playerPos: { x: number; y: number }, xpOrbs: any[]) => {
@@ -264,6 +325,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'CREATE_EXPLOSION': {
+      const explosion = createExplosion(
+        action.payload.x,
+        action.payload.y,
+        action.payload.color || '#FF6B35',
+        state.explosionIdCounter
+      );
+      
+      return {
+        ...state,
+        explosions: [...state.explosions, explosion],
+        explosionIdCounter: state.explosionIdCounter + 1,
+      };
+    }
+
+    case 'UPDATE_EXPLOSIONS': {
+      return {
+        ...state,
+        explosions: updateExplosions(state.explosions),
+      };
+    }
+
     case 'MOVE_ENTITIES': {
       // Move enemies towards player
       const updatedEnemies = state.enemies.map(enemy => {
@@ -307,10 +390,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return inBounds && inRange;
       });
 
+      // Update explosions
+      const updatedExplosions = updateExplosions(state.explosions);
+
       return {
         ...state,
         enemies: updatedEnemies,
         projectiles: updatedProjectiles,
+        explosions: updatedExplosions,
       };
     }
 
@@ -339,8 +426,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // Check projectile-enemy collisions
-      const { hitProjectileIds, hitEnemyIds, newXPOrbs, newShards } = 
-        checkProjectileEnemyCollisions(newState.projectiles, newState.enemies);
+      const { hitProjectileIds, hitEnemyIds, newXPOrbs, newShards, newExplosions, newExplosionIdCounter } = 
+        checkProjectileEnemyCollisions(newState.projectiles, newState.enemies, newState.explosionIdCounter);
 
       if (hitProjectileIds.length > 0) {
         newState.projectiles = newState.projectiles.filter(p => !hitProjectileIds.includes(p.id));
@@ -350,6 +437,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newState.enemies = newState.enemies.filter(e => !hitEnemyIds.includes(e.id));
         newState.xpOrbs = [...newState.xpOrbs, ...newXPOrbs];
         newState.chronoShards = [...newState.chronoShards, ...newShards];
+        newState.explosions = [...newState.explosions, ...newExplosions];
+        newState.explosionIdCounter = newExplosionIdCounter;
       }
 
       // Check player-XP orb collisions
