@@ -10,31 +10,51 @@ import {
 interface PlayerProps {
   x: number;
   y: number;
-  radius: number;
+  radius?: number;
+  color?: string;
+  isInvincible?: boolean;
 }
 
-const Player: React.FC<PlayerProps> = ({ x: initialX, y: initialY, radius }) => {
-  // Principle 3: The "Bridge". These SharedValues live on the UI thread.
+const Player: React.FC<PlayerProps> = ({ 
+  x: initialX, 
+  y: initialY, 
+  radius = 20, 
+  color = '#38BDF8',
+  isInvincible = false 
+}) => {
+  // Shared values for smooth animation on UI thread
   const x = useSharedValue(initialX);
   const y = useSharedValue(initialY);
+  const opacity = useSharedValue(1);
 
-  // This effect listens for changes from the GameEngine's state (the props).
+  // Update position shared values when props change
   useEffect(() => {
-    // When the engine's state changes, we command the UI thread to animate to the new position.
     x.value = withTiming(initialX, {
-      duration: 100, // Keep animation snappy to match engine ticks
+      duration: 100,
       easing: Easing.linear,
     });
     y.value = withTiming(initialY, {
       duration: 100,
       easing: Easing.linear,
     });
-  }, [initialX, initialY]); // Correct dependency array prevents unnecessary re-renders.
+  }, [initialX, initialY]);
 
-  // Principle 1 & 2: API Precision and Data Flow.
-  // We derive the final props for the Skia component from our animated shared values.
-  // The Skia Circle component will now re-render on the UI thread whenever these values change.
-  // Note: We are explicitly using `cx` and `cy` as required by the Skia API.
+  // Handle invincibility visual effect
+  useEffect(() => {
+    if (isInvincible) {
+      opacity.value = withTiming(0.5, {
+        duration: 200,
+        easing: Easing.inOut(Easing.ease),
+      });
+    } else {
+      opacity.value = withTiming(1, {
+        duration: 200,
+        easing: Easing.inOut(Easing.ease),
+      });
+    }
+  }, [isInvincible]);
+
+  // Derive cx and cy for Skia Circle
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
 
@@ -43,7 +63,8 @@ const Player: React.FC<PlayerProps> = ({ x: initialX, y: initialY, radius }) => 
       cx={cx}
       cy={cy}
       r={radius}
-      color="#38BDF8" // Using a color from our theme's accent
+      color={color}
+      opacity={opacity}
     />
   );
 };

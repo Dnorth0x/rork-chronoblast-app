@@ -1,5 +1,11 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Circle } from '@shopify/react-native-skia';
+import {
+  useSharedValue,
+  useDerivedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 interface XPOrbProps {
   x: number;
@@ -8,33 +14,35 @@ interface XPOrbProps {
   value: number;
 }
 
-export default function XPOrb({ x, y, size }: XPOrbProps) {
+export default function XPOrb({ x: initialX, y: initialY, size }: XPOrbProps) {
+  const radius = size / 2;
+  
+  // Shared values for smooth animation on UI thread
+  const x = useSharedValue(initialX);
+  const y = useSharedValue(initialY);
+
+  // Update shared values when props change
+  useEffect(() => {
+    x.value = withTiming(initialX, {
+      duration: 100,
+      easing: Easing.linear,
+    });
+    y.value = withTiming(initialY, {
+      duration: 100,
+      easing: Easing.linear,
+    });
+  }, [initialX, initialY]);
+
+  // Derive cx and cy for Skia Circle
+  const cx = useDerivedValue(() => x.value);
+  const cy = useDerivedValue(() => y.value);
+
   return (
-    <View
-      style={[
-        styles.xpOrb,
-        {
-          left: x - size / 2,
-          top: y - size / 2,
-          width: size,
-          height: size,
-        }
-      ]}
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={radius}
+      color="#FFD700"
     />
   );
 }
-
-const styles = StyleSheet.create({
-  xpOrb: {
-    position: 'absolute',
-    backgroundColor: '#FFD700',
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: '#FFA500',
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-});

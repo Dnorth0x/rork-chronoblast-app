@@ -1,5 +1,11 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Circle } from '@shopify/react-native-skia';
+import {
+  useSharedValue,
+  useDerivedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 interface ProjectileProps {
   x: number;
@@ -8,31 +14,35 @@ interface ProjectileProps {
   color: string;
 }
 
-export default function Projectile({ x, y, size, color }: ProjectileProps) {
+export default function Projectile({ x: initialX, y: initialY, size, color }: ProjectileProps) {
+  const radius = size / 2;
+  
+  // Shared values for smooth animation on UI thread
+  const x = useSharedValue(initialX);
+  const y = useSharedValue(initialY);
+
+  // Update shared values when props change
+  useEffect(() => {
+    x.value = withTiming(initialX, {
+      duration: 50, // Faster animation for projectiles
+      easing: Easing.linear,
+    });
+    y.value = withTiming(initialY, {
+      duration: 50,
+      easing: Easing.linear,
+    });
+  }, [initialX, initialY]);
+
+  // Derive cx and cy for Skia Circle
+  const cx = useDerivedValue(() => x.value);
+  const cy = useDerivedValue(() => y.value);
+
   return (
-    <View
-      style={[
-        styles.projectile,
-        {
-          left: x - size / 2,
-          top: y - size / 2,
-          width: size,
-          height: size,
-          backgroundColor: color,
-          shadowColor: color,
-        }
-      ]}
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={radius}
+      color={color}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  projectile: {
-    position: 'absolute',
-    borderRadius: 50,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-});

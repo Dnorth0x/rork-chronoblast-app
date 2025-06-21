@@ -1,5 +1,6 @@
 import React, { useReducer, useEffect, useRef } from 'react';
 import { StyleSheet, View, PanResponder, Dimensions, Text, Animated } from 'react-native';
+import { Canvas } from '@shopify/react-native-skia';
 import Player from './Player';
 import Enemy from './Enemy';
 import Projectile from './Projectile';
@@ -286,53 +287,55 @@ export default function GameScreen() {
       ]} 
       {...panResponder.panHandlers}
     >
-      <Player 
-        ref={playerRef}
-        x={gameState.playerPosition.x} 
-        y={gameState.playerPosition.y} 
-        color="#00FFFF"
-        isInvincible={gameState.isPlayerInvincible}
-      />
-      
-      {gameState.enemies.map(enemy => (
-        <Enemy 
-          key={enemy.id}
-          x={enemy.x} 
-          y={enemy.y} 
-          color={enemy.color}
-          size={enemy.size}
+      <Canvas style={styles.gameCanvas}>
+        <Player 
+          x={gameState.playerPosition.x + 20} 
+          y={gameState.playerPosition.y + 20} 
+          radius={20}
+          color="#00FFFF"
+          isInvincible={gameState.isPlayerInvincible}
         />
-      ))}
+        
+        {gameState.enemies.map(enemy => (
+          <Enemy 
+            key={enemy.id}
+            x={enemy.x + enemy.size / 2} 
+            y={enemy.y + enemy.size / 2} 
+            color={enemy.color}
+            size={enemy.size}
+          />
+        ))}
 
-      {gameState.projectiles.map(projectile => (
-        <Projectile
-          key={projectile.id}
-          x={projectile.x}
-          y={projectile.y}
-          size={projectile.size}
-          color={projectile.color}
-        />
-      ))}
+        {gameState.projectiles.map(projectile => (
+          <Projectile
+            key={projectile.id}
+            x={projectile.x}
+            y={projectile.y}
+            size={projectile.size}
+            color={projectile.color}
+          />
+        ))}
 
-      {gameState.xpOrbs.map(orb => (
-        <XPOrb
-          key={orb.id}
-          x={orb.x}
-          y={orb.y}
-          size={orb.size}
-          value={orb.value}
-        />
-      ))}
+        {gameState.xpOrbs.map(orb => (
+          <XPOrb
+            key={orb.id}
+            x={orb.x + orb.size / 2}
+            y={orb.y + orb.size / 2}
+            size={orb.size}
+            value={orb.value}
+          />
+        ))}
 
-      {gameState.chronoShards.map(shard => (
-        <ChronoShard
-          key={shard.id}
-          x={shard.x}
-          y={shard.y}
-          size={shard.size}
-          value={shard.value}
-        />
-      ))}
+        {gameState.chronoShards.map(shard => (
+          <ChronoShard
+            key={shard.id}
+            x={shard.x + shard.size / 2}
+            y={shard.y + shard.size / 2}
+            size={shard.size}
+            value={shard.value}
+          />
+        ))}
+      </Canvas>
       
       <HUD 
         score={gameState.timeElapsed}
@@ -360,6 +363,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1C1C1E',
+  },
+  gameCanvas: {
+    flex: 1,
   },
   gameOverOverlay: {
     position: 'absolute',
