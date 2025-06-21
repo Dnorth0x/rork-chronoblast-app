@@ -6,13 +6,21 @@ import GameCanvas from '@/components/GameCanvas';
 import GameUI from '@/components/GameUI';
 import Overlay from '@/components/Overlay';
 import Explosion from '@/components/Explosion';
+import Enemy from '@/components/Enemy';
 import { Colors } from '@/constants/theme';
 import { GameEvent } from '@/types/gameState';
 import { setEventDispatcher, gameReducer, initialGameState } from '@/game/gameReducer';
 
 export default function HomeScreen() {
-  // Add game state management to access explosions
+  // Add game state management to access explosions and enemies
   const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
+
+  // Spawn a single enemy for testing the pipeline
+  useEffect(() => {
+    if (gameState.enemies.length === 0) {
+      dispatch({ type: 'SPAWN_ENEMY', payload: {} });
+    }
+  }, []); // Runs once on mount
 
   // PHASE 2: Properly typed event handler using SSOT
   const onEvent = React.useCallback((event: GameEvent) => {
@@ -96,6 +104,11 @@ export default function HomeScreen() {
       <View style={styles.container}>
         <Canvas style={styles.canvas}>
           <Fill color={Colors.primary} />
+          
+          {/* Render enemies */}
+          {gameState.enemies.map(enemy => (
+            <Enemy key={enemy.id} enemy={enemy} />
+          ))}
           
           {/* Render self-animating explosions */}
           {gameState.explosions.map(explosion => (

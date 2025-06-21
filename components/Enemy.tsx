@@ -6,44 +6,42 @@ import {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { EnemyObject } from '@/types/gameState';
 
 interface EnemyProps {
-  x: number;
-  y: number;
-  color: string;
-  size: number;
+  enemy: EnemyObject;
 }
 
-const Enemy: React.FC<EnemyProps> = ({ x: initialX, y: initialY, color, size }) => {
+const Enemy: React.FC<EnemyProps> = ({ enemy }) => {
   // PHASE 2: Enhanced enemy using Skia Integration Doctrine v3
-  const x = useSharedValue(initialX);
-  const y = useSharedValue(initialY);
+  const x = useSharedValue(enemy.x);
+  const y = useSharedValue(enemy.y);
 
   useEffect(() => {
     // Smooth movement animation bridge from game engine to Skia
-    x.value = withTiming(initialX, {
+    x.value = withTiming(enemy.x, {
       duration: 100,
       easing: Easing.linear,
     });
-    y.value = withTiming(initialY, {
+    y.value = withTiming(enemy.y, {
       duration: 100,
       easing: Easing.linear,
     });
-  }, [initialX, initialY]);
+  }, [enemy.x, enemy.y]);
 
   // Animated props for Skia (cx, cy can accept SharedValue)
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
   
   // Calculate radius from size (static prop)
-  const radius = size / 2;
+  const radius = enemy.size / 2;
 
   return (
     <Circle
       cx={cx}
       cy={cy}
       r={radius}
-      color={color}
+      color={enemy.color}
     />
   );
 };
