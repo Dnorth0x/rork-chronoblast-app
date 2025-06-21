@@ -69,7 +69,7 @@ class UISoundManager {
 const uiSoundManager = new UISoundManager();
 
 const GameUI: React.FC = () => {
-  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP LEVEL
   const pathname = usePathname();
   const { 
     score, 
@@ -86,22 +86,19 @@ const GameUI: React.FC = () => {
     player 
   } = useGameStore();
 
-  // Initialize UI sound manager - moved to top level
+  // Initialize UI sound manager
   React.useEffect(() => {
     uiSoundManager.init();
   }, []);
 
-  // Play sound when dash becomes ready - moved to top level
+  // Play sound when dash becomes ready
   React.useEffect(() => {
     if (player.dashReady && gameActive && !isPaused) {
       uiSoundManager.play('dash_ready');
     }
   }, [player.dashReady, gameActive, isPaused]);
 
-  // CONDITIONAL LOGIC AFTER ALL HOOKS
-  // Only show GameUI on the main game screen (index route) - more specific check
-  const shouldShowUI = pathname === '/' || pathname.endsWith('/(tabs)') || pathname.endsWith('/index');
-
+  // HELPER FUNCTIONS
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -130,111 +127,114 @@ const GameUI: React.FC = () => {
     }
   };
 
+  // CONDITIONAL LOGIC - Only show GameUI on the main game screen
+  const shouldShowUI = pathname === '/' || pathname.endsWith('/(tabs)') || pathname.endsWith('/index');
+
   // CONDITIONAL RENDERING IN RETURN STATEMENT
-  if (!shouldShowUI) {
-    return null;
-  }
-
   return (
-    <View style={styles.container}>
-      {/* Main UI Bar */}
-      <View style={styles.uiBar}>
-        <View style={styles.uiElement}>
-          <Text style={styles.uiText}>
-            Score: <Text style={styles.highlight}>{formatNumber(score)}</Text>
-          </Text>
-        </View>
-        <View style={styles.uiElement}>
-          <Text style={[
-            styles.uiText, 
-            timeLeft <= GAME_CONFIG.TIME_LOW_THRESHOLD && gameActive && !isPaused && styles.warning
-          ]}>
-            Time: <Text style={styles.highlight}>{formatTime(timeLeft)}s</Text>
-          </Text>
-        </View>
-        <View style={styles.uiElement}>
-          <Text style={styles.uiText}>
-            High: <Text style={styles.highlight}>{formatNumber(highScore)}</Text>
-          </Text>
-        </View>
-        <View style={styles.uiElement}>
-          <TouchableOpacity onPress={handlePausePress} style={styles.pauseButton}>
-            <Text style={styles.buttonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Combo Display */}
-      {currentCombo > 1 && gameActive && !isPaused && (
-        <View style={styles.comboContainer}>
-          <Text style={styles.comboText}>COMBO x{currentCombo}!</Text>
-        </View>
-      )}
-
-      {/* Power-up Indicators */}
-      <View style={styles.powerUpArea}>
-        {Object.entries(activePowerUps).map(([key, powerUp]) => {
-          if (!powerUp.active) return null;
-          const remainingTime = Math.max(0, Math.ceil((powerUp.endTime - Date.now()) / 1000));
-          let text = '';
-          let style = {};
-          
-          if (key === PT.SCORE_BOOST) {
-            text = '2x Score';
-            style = styles.scoreBoost;
-          } else if (key === PT.SLOW_ENEMY) {
-            text = 'Slowdown';
-            style = styles.slowEnemy;
-          } else if (key === PT.CONFUSION_ORB) {
-            text = 'Confused!';
-            style = styles.confusion;
-          }
-          
-          return (
-            <View key={key} style={[styles.powerUpIndicator, style]}>
-              <Text style={styles.powerUpText}>{`${text} (${remainingTime}s)`}</Text>
+    <>
+      {shouldShowUI ? (
+        <View style={styles.container}>
+          {/* Main UI Bar */}
+          <View style={styles.uiBar}>
+            <View style={styles.uiElement}>
+              <Text style={styles.uiText}>
+                Score: <Text style={styles.highlight}>{formatNumber(score)}</Text>
+              </Text>
             </View>
-          );
-        })}
-      </View>
+            <View style={styles.uiElement}>
+              <Text style={[
+                styles.uiText, 
+                timeLeft <= GAME_CONFIG.TIME_LOW_THRESHOLD && gameActive && !isPaused && styles.warning
+              ]}>
+                Time: <Text style={styles.highlight}>{formatTime(timeLeft)}s</Text>
+              </Text>
+            </View>
+            <View style={styles.uiElement}>
+              <Text style={styles.uiText}>
+                High: <Text style={styles.highlight}>{formatNumber(highScore)}</Text>
+              </Text>
+            </View>
+            <View style={styles.uiElement}>
+              <TouchableOpacity onPress={handlePausePress} style={styles.pauseButton}>
+                <Text style={styles.buttonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-      {/* Performance Indicator */}
-      {performanceMode && (
-        <View style={styles.performanceIndicator}>
-          <Text style={styles.performanceText}>Performance Mode</Text>
-        </View>
-      )}
+          {/* Combo Display */}
+          {currentCombo > 1 && gameActive && !isPaused && (
+            <View style={styles.comboContainer}>
+              <Text style={styles.comboText}>COMBO x{currentCombo}!</Text>
+            </View>
+          )}
 
-      {/* Enhanced Dash Controls */}
-      <View style={styles.dashContainer}>
-        <View style={styles.dashCooldownContainer}>
-          <View 
-            style={[
-              styles.dashCooldownFill, 
-              player.dashReady ? styles.dashReady : styles.dashOnCooldown,
-              { width: `${getDashCooldownProgress()}%` }
-            ]} 
-          />
+          {/* Power-up Indicators */}
+          <View style={styles.powerUpArea}>
+            {Object.entries(activePowerUps).map(([key, powerUp]) => {
+              if (!powerUp.active) return null;
+              const remainingTime = Math.max(0, Math.ceil((powerUp.endTime - Date.now()) / 1000));
+              let text = '';
+              let style = {};
+              
+              if (key === PT.SCORE_BOOST) {
+                text = '2x Score';
+                style = styles.scoreBoost;
+              } else if (key === PT.SLOW_ENEMY) {
+                text = 'Slowdown';
+                style = styles.slowEnemy;
+              } else if (key === PT.CONFUSION_ORB) {
+                text = 'Confused!';
+                style = styles.confusion;
+              }
+              
+              return (
+                <View key={key} style={[styles.powerUpIndicator, style]}>
+                  <Text style={styles.powerUpText}>{`${text} (${remainingTime}s)`}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Performance Indicator */}
+          {performanceMode && (
+            <View style={styles.performanceIndicator}>
+              <Text style={styles.performanceText}>Performance Mode</Text>
+            </View>
+          )}
+
+          {/* Enhanced Dash Controls */}
+          <View style={styles.dashContainer}>
+            <View style={styles.dashCooldownContainer}>
+              <View 
+                style={[
+                  styles.dashCooldownFill, 
+                  player.dashReady ? styles.dashReady : styles.dashOnCooldown,
+                  { width: `${getDashCooldownProgress()}%` }
+                ]} 
+              />
+            </View>
+            <TouchableOpacity 
+              onPress={handleDashPress} 
+              style={[
+                styles.dashButton, 
+                !player.dashReady && styles.dashButtonDisabled,
+                player.dashReady && styles.dashButtonReady
+              ]} 
+              disabled={!player.dashReady}
+            >
+              <Text style={[
+                styles.buttonText, 
+                !player.dashReady && styles.disabledButtonText,
+                player.dashReady && styles.readyButtonText
+              ]}>
+                {player.isDashing ? 'Dashing!' : 'Dash'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity 
-          onPress={handleDashPress} 
-          style={[
-            styles.dashButton, 
-            !player.dashReady && styles.dashButtonDisabled,
-            player.dashReady && styles.dashButtonReady
-          ]} 
-          disabled={!player.dashReady}
-        >
-          <Text style={[
-            styles.buttonText, 
-            !player.dashReady && styles.disabledButtonText,
-            player.dashReady && styles.readyButtonText
-          ]}>
-            {player.isDashing ? 'Dashing!' : 'Dash'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      ) : null}
+    </>
   );
 };
 
