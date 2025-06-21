@@ -8,31 +8,15 @@ import Overlay from '@/components/Overlay';
 import { Colors } from '@/constants/theme';
 import { GameEvent } from '@/types/gameState';
 import { setEventDispatcher } from '@/game/gameReducer';
-import { useGameStore } from '@/stores/gameStore';
 
 export default function HomeScreen() {
-  const { dispatch } = useGameStore();
-
-  // PHASE 2: Properly typed event handler using SSOT with explosion activation
+  // PHASE 2: Properly typed event handler using SSOT
   const onEvent = React.useCallback((event: GameEvent) => {
-    // Handle game events with proper typing and state updates
+    // Handle game events with proper typing
     switch (event.type) {
       case 'create-explosion':
-        // Generate unique explosion ID and create explosion entity
-        const explosionId = `explosion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Create explosion in game state by dispatching action
-        dispatch({
-          type: 'CREATE_EXPLOSION',
-          payload: {
-            x: event.payload.position.x,
-            y: event.payload.position.y,
-            color: event.payload.color || '#FF6B35',
-            intensity: event.payload.intensity || 1.0
-          }
-        });
-        
-        console.log('Explosion created at:', event.payload.position, 'with ID:', explosionId);
+        // VFX system integration - explosion creation is handled in the game reducer
+        console.log('Explosion created at:', event.payload.position);
         break;
       
       case 'enemy_death':
@@ -71,7 +55,7 @@ export default function HomeScreen() {
         console.log('Unhandled event:', event.type);
         break;
     }
-  }, [dispatch]);
+  }, []);
 
   // Set up event dispatcher on component mount
   React.useEffect(() => {
