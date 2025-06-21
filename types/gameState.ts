@@ -98,14 +98,27 @@ export interface GameState {
   explosionIdCounter: number;
 }
 
-// Action types
+// PHASE 1: Single Source of Truth for Game Events
+export type GameEvent =
+  | { type: 'player_hit'; payload: { damage: number; enemyId: string } }
+  | { type: 'enemy_hit'; payload: { enemyId: string; damage: number; projectileId: string } }
+  | { type: 'enemy_death'; payload: { enemyId: string; position: { x: number; y: number }; enemyType: string } }
+  | { type: 'weapon_fire'; payload: { projectileId: string; position: { x: number; y: number } } }
+  | { type: 'create-explosion'; payload: { position: { x: number; y: number }; color?: string; intensity?: number } }
+  | { type: 'xp_collected'; payload: { orbId: string; value: number; position: { x: number; y: number } } }
+  | { type: 'shard_collected'; payload: { shardId: string; value: number; position: { x: number; y: number } } }
+  | { type: 'level_up'; payload: { newLevel: number; position: { x: number; y: number } } }
+  | { type: 'power_up_activated'; payload: { powerUpType: string; duration: number } }
+  | { type: 'game_over'; payload: { finalScore: number; survivalTime: number } };
+
+// Action types with proper event integration
 export type GameAction =
   | { type: 'UPDATE_PLAYER_POSITION'; payload: PlayerPosition }
   | { type: 'SPAWN_ENEMY'; payload: EnemyObject }
   | { type: 'SPAWN_PROJECTILE'; payload: ProjectileObject }
   | { type: 'SPAWN_XP_ORB'; payload: XPOrbObject }
   | { type: 'SPAWN_CHRONO_SHARD'; payload: ChronoShardObject }
-  | { type: 'CREATE_EXPLOSION'; payload: { x: number; y: number; color?: string } }
+  | { type: 'CREATE_EXPLOSION'; payload: { x: number; y: number; color?: string; intensity?: number } }
   | { type: 'UPDATE_ENEMIES'; payload: EnemyObject[] }
   | { type: 'UPDATE_PROJECTILES'; payload: ProjectileObject[] }
   | { type: 'UPDATE_EXPLOSIONS' }
@@ -123,4 +136,5 @@ export type GameAction =
   | { type: 'UPDATE_SPAWN_RATE'; payload: number }
   | { type: 'MOVE_ENTITIES' }
   | { type: 'HANDLE_COLLISIONS' }
-  | { type: 'RESET_GAME' };
+  | { type: 'RESET_GAME' }
+  | { type: 'DISPATCH_EVENT'; payload: GameEvent };

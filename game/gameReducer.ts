@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { GameState, GameAction, EnemyObject, ProjectileObject, ExplosionObject, ExplosionParticle } from '@/types/gameState';
+import { GameState, GameAction, EnemyObject, ProjectileObject, ExplosionObject, ExplosionParticle, GameEvent } from '@/types/gameState';
 import { enemyData, enemyTypes } from './enemyData';
 import { weaponData } from './weaponData';
 
@@ -31,6 +31,19 @@ export const initialGameState: GameState = {
   xpOrbIdCounter: 0,
   shardIdCounter: 0,
   explosionIdCounter: 0,
+};
+
+// Event dispatcher for game events
+let eventDispatcher: ((event: GameEvent) => void) | null = null;
+
+export const setEventDispatcher = (dispatcher: (event: GameEvent) => void) => {
+  eventDispatcher = dispatcher;
+};
+
+const dispatchEvent = (event: GameEvent) => {
+  if (eventDispatcher) {
+    eventDispatcher(event);
+  }
 };
 
 // Helper functions for game logic
@@ -79,15 +92,16 @@ const findNearestEnemy = (playerPos: { x: number; y: number }, enemies: EnemyObj
   return nearestDistance <= weaponData.basic_orb.range ? nearestEnemy : null;
 };
 
-const createExplosion = (x: number, y: number, color: string = '#FF6B35', explosionId: number): ExplosionObject => {
-  const particleCount = 8 + Math.floor(Math.random() * 4); // 8-12 particles
+const createExplosion = (x: number, y: number, color: string = '#FF6B35', explosionId: number, intensity: number = 1): ExplosionObject => {
+  const baseParticleCount = 8;
+  const particleCount = Math.floor(baseParticleCount * intensity) + Math.floor(Math.random() * 4); // 8-12 particles base
   const particles: ExplosionParticle[] = [];
   
   for (let i = 0; i < particleCount; i++) {
     const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
-    const speed = 2 + Math.random() * 3; // Random speed between 2-5
-    const radius = 2 + Math.random() * 3; // Random radius between 2-5
-    const life = 30 + Math.random() * 20; // Life between 30-50 frames
+    const speed = (2 + Math.random() * 3) * intensity; // Random speed between 2-5, scaled by intensity
+    const radius = (2 + Math.random() * 3) * Math.min(intensity, 1.5); // Random radius between 2-5, capped scaling
+    const life = (30 + Math.random() * 20) * intensity; // Life between 30-50 frames, scaled by intensity
     
     particles.push({
       id: `particle-${explosionId}-${i}`,
@@ -151,6 +165,12 @@ const checkPlayerEnemyCollisions = (playerPos: { x: number; y: number }, enemies
 
     if (distance < collisionDistance) {
       collidedEnemyIds.push(enemy.id);
+      
+      // Dispatch player hit event
+      dispatchEvent({
+        type: 'player_hit',
+        payload: { damage: 1, enemyId: enemy.id }
+      });
     }
   });
 
@@ -180,23 +200,56 @@ const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies
       if (distance < projectileRadius + enemyRadius) {
         hitProjectileIds.push(projectile.id);
         
+        // Dispatch enemy hit event
+        dispatchEvent({
+          type: 'enemy_hit',
+          payload: { 
+            enemyId: enemy.id, 
+            damage: projectile.damage, 
+            projectileId: projectile.id 
+          }
+        });
+        
         const updatedEnemy = { ...enemy, health: enemy.health - projectile.damage };
         
         if (updatedEnemy.health <= 0) {
           hitEnemyIds.push(enemy.id);
           
-          // Create explosion at enemy position
+          // Dispatch enemy death event
+          dispatchEvent({
+            type: 'enemy_death',
+            payload: { 
+              enemyId: enemy.id, 
+              position: { x: enemyCenterX, y: enemyCenterY },
+              enemyType: enemy.type
+            }
+          });
+          
+          // Create explosion at enemy position with enhanced VFX
           const explosionColor = enemy.type === 'brute' ? '#FF4444' : '#FF6B35';
-          newExplosions.push(createExplosion(enemyCenterX, enemyCenterY, explosionColor, currentExplosionId++));
+          const explosionIntensity = enemy.type === 'brute' ? 1.5 : 1.0;
+          const explosion = createExplosion(enemyCenterX, enemyCenterY, explosionColor, currentExplosionId++, explosionIntensity);
+          newExplosions.push(explosion);
+          
+          // Dispatch explosion creation event
+          dispatchEvent({
+            type: 'create-explosion',
+            payload: { 
+              position: { x: enemyCenterX, y: enemyCenterY },
+              color: explosionColor,
+              intensity: explosionIntensity
+            }
+          });
           
           const baseXpValue = enemy.type === 'brute' ? 15 : 10;
-          newXPOrbs.push({
+          const xpOrb = {
             id: `xp-${Math.random().toString(36).substr(2, 9)}`,
             x: enemyCenterX,
             y: enemyCenterY,
             value: baseXpValue,
             size: 12,
-          });
+          };
+          newXPOrbs.push(xpOrb);
 
           if (Math.random() < 0.15) {
             const shardValue = enemy.type === 'brute' ? 3 : 1;
@@ -232,6 +285,16 @@ const checkPlayerXPCollisions = (playerPos: { x: number; y: number }, xpOrbs: an
     if (distance < playerRadius + orb.size / 2) {
       collectedOrbIds.push(orb.id);
       totalXP += orb.value;
+      
+      // Dispatch XP collection event
+      dispatchEvent({
+        type: 'xp_collected',
+        payload: { 
+          orbId: orb.id, 
+          value: orb.value, 
+          position: { x: orb.x, y: orb.y } 
+        }
+      });
     }
   });
 
@@ -254,6 +317,16 @@ const checkPlayerShardCollisions = (playerPos: { x: number; y: number }, chronoS
     if (distance < playerRadius + shard.size / 2) {
       collectedShardIds.push(shard.id);
       totalShards += shard.value;
+      
+      // Dispatch shard collection event
+      dispatchEvent({
+        type: 'shard_collected',
+        payload: { 
+          shardId: shard.id, 
+          value: shard.value, 
+          position: { x: shard.x, y: shard.y } 
+        }
+      });
     }
   });
 
@@ -318,6 +391,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         distanceTraveled: 0,
       };
       
+      // Dispatch weapon fire event
+      dispatchEvent({
+        type: 'weapon_fire',
+        payload: { 
+          projectileId: newProjectile.id, 
+          position: { x: playerCenterX, y: playerCenterY } 
+        }
+      });
+      
       return {
         ...state,
         projectiles: [...state.projectiles, newProjectile],
@@ -330,7 +412,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         action.payload.x,
         action.payload.y,
         action.payload.color || '#FF6B35',
-        state.explosionIdCounter
+        state.explosionIdCounter,
+        action.payload.intensity || 1.0
       );
       
       return {
@@ -414,6 +497,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           
           if (newState.playerHealth <= 0) {
             newState.isGameOver = true;
+            
+            // Dispatch game over event
+            dispatchEvent({
+              type: 'game_over',
+              payload: { 
+                finalScore: state.timeElapsed * 10, 
+                survivalTime: state.timeElapsed 
+              }
+            });
           }
 
           newState.enemies = state.enemies.map(enemy => {
@@ -452,11 +544,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
 
         if (newState.playerStats.xp >= newState.playerStats.xpToNextLevel) {
+          const oldLevel = newState.playerStats.level;
           newState.playerStats = {
             level: newState.playerStats.level + 1,
             xp: newState.playerStats.xp - newState.playerStats.xpToNextLevel,
             xpToNextLevel: newState.playerStats.xpToNextLevel + 50,
           };
+          
+          // Dispatch level up event
+          dispatchEvent({
+            type: 'level_up',
+            payload: { 
+              newLevel: newState.playerStats.level, 
+              position: { x: state.playerPosition.x + 20, y: state.playerPosition.y + 20 } 
+            }
+          });
         }
       }
 
@@ -492,6 +594,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
 
     case 'SET_GAME_OVER':
+      if (action.payload) {
+        // Dispatch game over event
+        dispatchEvent({
+          type: 'game_over',
+          payload: { 
+            finalScore: state.timeElapsed * 10, 
+            survivalTime: state.timeElapsed 
+          }
+        });
+      }
+      
       return {
         ...state,
         isGameOver: action.payload,
@@ -505,6 +618,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           y: screenHeight / 2 - 20,
         },
       };
+
+    case 'DISPATCH_EVENT':
+      // Handle dispatched events if needed for state changes
+      dispatchEvent(action.payload);
+      return state;
 
     default:
       return state;

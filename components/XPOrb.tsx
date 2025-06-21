@@ -4,6 +4,7 @@ import {
   useSharedValue,
   useDerivedValue,
   withTiming,
+  withRepeat,
   Easing,
 } from 'react-native-reanimated';
 
@@ -14,15 +15,14 @@ interface XPOrbProps {
   value: number;
 }
 
-export default function XPOrb({ x: initialX, y: initialY, size }: XPOrbProps) {
-  const radius = size / 2;
-  
-  // Shared values for smooth animation on UI thread
+const XPOrb: React.FC<XPOrbProps> = ({ x: initialX, y: initialY, size, value }) => {
+  // PHASE 2: Enhanced XP orb using Skia Integration Doctrine v3
   const x = useSharedValue(initialX);
   const y = useSharedValue(initialY);
+  const pulseScale = useSharedValue(1);
 
-  // Update shared values when props change
   useEffect(() => {
+    // Smooth movement animation bridge
     x.value = withTiming(initialX, {
       duration: 100,
       easing: Easing.linear,
@@ -33,16 +33,36 @@ export default function XPOrb({ x: initialX, y: initialY, size }: XPOrbProps) {
     });
   }, [initialX, initialY]);
 
-  // Derive cx and cy for Skia Circle
+  useEffect(() => {
+    // Pulsing animation for XP orbs
+    pulseScale.value = withRepeat(
+      withTiming(1.2, {
+        duration: 800,
+        easing: Easing.inOut(Easing.sine),
+      }),
+      -1,
+      true
+    );
+  }, []);
+
+  // Animated props for Skia
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
+  
+  // Static props derived from shared values
+  const animatedRadius = useDerivedValue(() => (size / 2) * pulseScale.value);
+  
+  // Color based on value
+  const orbColor = value >= 15 ? '#FFD700' : '#00FF88'; // Gold for high value, green for normal
 
   return (
     <Circle
       cx={cx}
       cy={cy}
-      r={radius}
-      color="#FFD700"
+      r={animatedRadius}
+      color={orbColor}
     />
   );
-}
+};
+
+export default XPOrb;

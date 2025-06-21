@@ -17,11 +17,14 @@ interface ParticleProps {
 }
 
 const Particle: React.FC<ParticleProps> = ({ particle }) => {
+  // PHASE 2: Enhanced VFX implementation using Skia Integration Doctrine v3
   const x = useSharedValue(particle.x);
   const y = useSharedValue(particle.y);
+  const radius = useSharedValue(particle.radius);
   const alpha = useSharedValue(particle.alpha);
 
   useEffect(() => {
+    // Smooth animation bridge from game engine to Skia
     x.value = withTiming(particle.x, {
       duration: 50,
       easing: Easing.linear,
@@ -30,31 +33,52 @@ const Particle: React.FC<ParticleProps> = ({ particle }) => {
       duration: 50,
       easing: Easing.linear,
     });
+    
+    // Animate particle fade and shrink
     alpha.value = withTiming(particle.alpha, {
-      duration: 50,
-      easing: Easing.linear,
+      duration: 100,
+      easing: Easing.out(Easing.quad),
     });
-  }, [particle.x, particle.y, particle.alpha]);
+    
+    // Slight radius animation for more dynamic effect
+    radius.value = withTiming(particle.radius * (0.8 + particle.alpha * 0.2), {
+      duration: 100,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [particle.x, particle.y, particle.alpha, particle.radius]);
 
+  // Animated props for Skia
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
-  const opacity = useDerivedValue(() => alpha.value);
+  
+  // Static props derived from shared values
+  const animatedRadius = useDerivedValue(() => radius.value);
+  const animatedAlpha = useDerivedValue(() => alpha.value);
+  
+  // Create color with alpha
+  const particleColor = useDerivedValue(() => {
+    const alphaHex = Math.floor(animatedAlpha.value * 255).toString(16).padStart(2, '0');
+    return `${particle.color}${alphaHex}`;
+  });
 
   return (
     <Circle
       cx={cx}
       cy={cy}
-      r={particle.radius}
-      color={particle.color}
-      opacity={opacity}
+      r={animatedRadius}
+      color={particleColor}
     />
   );
 };
 
 const Explosion: React.FC<ExplosionProps> = ({ particles }) => {
+  if (!particles || particles.length === 0) {
+    return null;
+  }
+
   return (
     <Group>
-      {particles.map(particle => (
+      {particles.map((particle) => (
         <Particle key={particle.id} particle={particle} />
       ))}
     </Group>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Circle, Group, Paint, Blur } from '@shopify/react-native-skia';
+import { Circle } from '@shopify/react-native-skia';
 import {
   useSharedValue,
   useDerivedValue,
@@ -15,18 +15,14 @@ interface ChronoShardProps {
   value: number;
 }
 
-export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoShardProps) {
-  // Shared values for smooth position animation on UI thread
+const ChronoShard: React.FC<ChronoShardProps> = ({ x: initialX, y: initialY, size, value }) => {
+  // PHASE 2: Fixed ChronoShard using Skia Integration Doctrine v3
   const x = useSharedValue(initialX);
   const y = useSharedValue(initialY);
-  
-  // Shared values for advanced visual effects
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.8);
-  const glowIntensity = useSharedValue(0.6);
+  const rotationScale = useSharedValue(1);
 
-  // Update position shared values when props change
   useEffect(() => {
+    // Smooth movement animation bridge
     x.value = withTiming(initialX, {
       duration: 100,
       easing: Easing.linear,
@@ -37,88 +33,37 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
     });
   }, [initialX, initialY]);
 
-  // Start advanced visual animations on mount
   useEffect(() => {
-    // Pulsing scale animation
-    scale.value = withRepeat(
+    // Rotating scale animation for chrono shards
+    rotationScale.value = withRepeat(
       withTiming(1.3, {
         duration: 1200,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-
-    // Breathing opacity animation
-    opacity.value = withRepeat(
-      withTiming(1, {
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-
-    // Glow intensity animation
-    glowIntensity.value = withRepeat(
-      withTiming(1, {
-        duration: 600,
-        easing: Easing.inOut(Easing.ease),
+        easing: Easing.inOut(Easing.sine),
       }),
       -1,
       true
     );
   }, []);
 
-  // Derive animated props for Skia components
+  // Animated props for Skia (cx, cy can accept SharedValue)
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
-
-  // THE FIX: Calculate static prop values as primitives
-  // These are used directly as numbers, not as SharedValues
-  const baseRadius = size / 2;
+  
+  // THE FIX: Static props derived from shared values
+  // The 'r' prop for radius is a static prop and expects a number, not a SharedValue
+  const animatedRadius = useDerivedValue(() => (size / 2) * rotationScale.value);
+  
+  // Color based on value - brighter for higher value shards
+  const shardColor = value >= 3 ? '#F59E0B' : '#FCD34D'; // Amber for high value, lighter amber for normal
 
   return (
-    <Group>
-      {/* Outer mystical glow */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={baseRadius * 2.2}
-        color="#9D4EDD"
-        opacity={0.2}
-      >
-        <Paint>
-          <Blur blur={6} />
-        </Paint>
-      </Circle>
-      
-      {/* Middle energy ring */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={baseRadius * 1.6}
-        color="#C77DFF"
-        opacity={opacity}
-      />
-      
-      {/* Core chrono shard */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={baseRadius}
-        color="#9D4EDD"
-        opacity={opacity}
-      />
-      
-      {/* Inner bright core */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={baseRadius * 0.5}
-        color="#E0AAFF"
-        opacity={0.9}
-      />
-    </Group>
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={animatedRadius}
+      color={shardColor}
+    />
   );
-}
+};
+
+export default ChronoShard;
