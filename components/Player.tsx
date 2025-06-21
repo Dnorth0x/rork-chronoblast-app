@@ -1,48 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { Canvas, Circle } from '@shopify/react-native-skia';
+import { useSharedValue, useDerivedValue, withTiming, withRepeat, withSequence } from 'react-native-reanimated';
 import { PlayerProps } from '@/types';
 
 const Player = React.forwardRef<View, PlayerProps>(({ x, y, color, isInvincible }, ref) => {
-  const [opacity, setOpacity] = useState(1);
+  // Shared values for smooth position interpolation
+  const animatedX = useSharedValue(x);
+  const animatedY = useSharedValue(y);
+  const opacity = useSharedValue(1);
 
-  // Flashing effect when invincible
+  // Update position with smooth timing when props change
   useEffect(() => {
-    let flashInterval: NodeJS.Timeout | null = null;
+    animatedX.value = withTiming(x, { duration: 100 });
+    animatedY.value = withTiming(y, { duration: 100 });
+  }, [x, y]);
 
+  // Handle flashing effect when invincible
+  useEffect(() => {
     if (isInvincible) {
-      // Start flashing
-      flashInterval = setInterval(() => {
-        setOpacity(prevOpacity => prevOpacity === 1 ? 0.3 : 1);
-      }, 100); // Flash every 100ms
+      // Start flashing animation
+      opacity.value = withRepeat(
+        withSequence(
+          withTiming(0.3, { duration: 100 }),
+          withTiming(1, { duration: 100 })
+        ),
+        -1, // Infinite repeat
+        false
+      );
     } else {
       // Stop flashing and reset opacity
-      if (flashInterval) {
-        clearInterval(flashInterval);
-      }
-      setOpacity(1);
+      opacity.value = withTiming(1, { duration: 100 });
     }
-
-    return () => {
-      if (flashInterval) {
-        clearInterval(flashInterval);
-      }
-    };
   }, [isInvincible]);
 
+  // Derived value for circle center
+  const center = useDerivedValue(() => ({
+    x: animatedX.value + 20, // Add radius to center the circle
+    y: animatedY.value + 20, // Add radius to center the circle
+  }));
+
+  // Derived value for circle opacity
+  const circleOpacity = useDerivedValue(() => opacity.value);
+
   return (
-    <Animated.View 
+    <View 
       ref={ref}
       style={[
-        styles.player,
+        styles.container,
         {
           left: x,
           top: y,
-          backgroundColor: color,
-          opacity: opacity,
         }
-      ]} 
-    />
+      ]}
+    >
+      <Canvas style={styles.canvas}>
+        <Circle
+          center={center}
+          radius={20}
+          color={color}
+          opacity={circleOpacity}
+        />
+      </Canvas>
+    </View>
   );
 });
 
@@ -51,10 +71,13 @@ Player.displayName = 'Player';
 export default Player;
 
 const styles = StyleSheet.create({
-  player: {
+  container: {
     position: 'absolute',
     width: 40,
     height: 40,
-    borderRadius: 20, // Makes it a perfect circle
+  },
+  canvas: {
+    width: 40,
+    height: 40,
   },
 });
