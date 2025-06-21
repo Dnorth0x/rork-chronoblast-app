@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Circle } from '@shopify/react-native-skia';
+import { Circle, Group, Paint, Blur } from '@shopify/react-native-skia';
 import {
   useSharedValue,
   useDerivedValue,
   withTiming,
+  withRepeat,
   Easing,
 } from 'react-native-reanimated';
 
@@ -15,13 +16,16 @@ interface ProjectileProps {
 }
 
 export default function Projectile({ x: initialX, y: initialY, size, color }: ProjectileProps) {
-  const radius = size / 2;
-  
-  // Shared values for smooth animation on UI thread
+  // Shared values for smooth position animation on UI thread
   const x = useSharedValue(initialX);
   const y = useSharedValue(initialY);
+  
+  // Advanced visual effect shared values
+  const glowIntensity = useSharedValue(0.5);
+  const coreScale = useSharedValue(1);
+  const trailOpacity = useSharedValue(0.6);
 
-  // Update shared values when props change
+  // Update position shared values when props change
   useEffect(() => {
     x.value = withTiming(initialX, {
       duration: 50, // Faster animation for projectiles
@@ -33,16 +37,89 @@ export default function Projectile({ x: initialX, y: initialY, size, color }: Pr
     });
   }, [initialX, initialY]);
 
-  // Derive cx and cy for Skia Circle
+  // Start advanced visual animations on mount
+  useEffect(() => {
+    // Pulsing glow effect
+    glowIntensity.value = withRepeat(
+      withTiming(1, {
+        duration: 300,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+
+    // Core pulsing
+    coreScale.value = withRepeat(
+      withTiming(1.2, {
+        duration: 400,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+
+    // Trail opacity breathing
+    trailOpacity.value = withRepeat(
+      withTiming(0.9, {
+        duration: 250,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+  }, []);
+
+  // Derive animated props for Skia components
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
 
+  // Calculate derived primitive values for static props
+  const baseRadius = size / 2;
+  const coreRadius = useDerivedValue(() => baseRadius * coreScale.value);
+  const glowRadius = useDerivedValue(() => baseRadius * 1.8 * glowIntensity.value);
+  const trailRadius = useDerivedValue(() => baseRadius * 1.4);
+
   return (
-    <Circle
-      cx={cx}
-      cy={cy}
-      r={radius}
-      color={color}
-    />
+    <Group>
+      {/* Outer glow effect */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={glowRadius}
+        color={color}
+        opacity={0.3}
+      >
+        <Paint>
+          <Blur blur={4} />
+        </Paint>
+      </Circle>
+      
+      {/* Trail effect */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={trailRadius}
+        color={color}
+        opacity={trailOpacity}
+      />
+      
+      {/* Core projectile */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={coreRadius}
+        color={color}
+      />
+      
+      {/* Inner bright core */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 0.4}
+        color="#FFFFFF"
+        opacity={0.8}
+      />
+    </Group>
   );
 }

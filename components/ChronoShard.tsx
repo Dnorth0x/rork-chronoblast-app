@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Rect } from '@shopify/react-native-skia';
+import { Circle } from '@shopify/react-native-skia';
 import {
   useSharedValue,
   useDerivedValue,
@@ -20,9 +20,9 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
   const x = useSharedValue(initialX);
   const y = useSharedValue(initialY);
   
-  // Shared values for rotation and pulse animations
-  const rotation = useSharedValue(0);
+  // Shared values for advanced visual effects
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.8);
 
   // Update position shared values when props change
   useEffect(() => {
@@ -36,22 +36,22 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
     });
   }, [initialX, initialY]);
 
-  // Start rotation and pulse animations on mount
+  // Start advanced visual animations on mount
   useEffect(() => {
-    // Rotation animation
-    rotation.value = withRepeat(
-      withTiming(360, {
-        duration: 3000,
-        easing: Easing.linear,
+    // Pulsing scale animation
+    scale.value = withRepeat(
+      withTiming(1.3, {
+        duration: 1200,
+        easing: Easing.inOut(Easing.ease),
       }),
       -1,
-      false
+      true
     );
 
-    // Pulse animation
-    scale.value = withRepeat(
-      withTiming(1.2, {
-        duration: 1000,
+    // Breathing opacity animation
+    opacity.value = withRepeat(
+      withTiming(1, {
+        duration: 800,
         easing: Easing.inOut(Easing.ease),
       }),
       -1,
@@ -59,23 +59,21 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
     );
   }, []);
 
-  // Derive properties for Skia Rect
-  const rectX = useDerivedValue(() => x.value - (size * scale.value) / 2);
-  const rectY = useDerivedValue(() => y.value - (size * scale.value) / 2);
-  const rectWidth = useDerivedValue(() => size * scale.value);
-  const rectHeight = useDerivedValue(() => size * scale.value);
+  // Derive animated props for Skia Circle (these accept SharedValue/DerivedValue)
+  const cx = useDerivedValue(() => x.value);
+  const cy = useDerivedValue(() => y.value);
+
+  // THE FIX: Calculate radius as a derived primitive value
+  // The 'r' prop is static and expects a number, not SharedValue
+  const radius = useDerivedValue(() => (size / 2) * scale.value);
 
   return (
-    <Rect
-      x={rectX}
-      y={rectY}
-      width={rectWidth}
-      height={rectHeight}
-      color="#9D4EDD"
-      transform={[
-        { rotate: rotation },
-      ]}
-      origin={useDerivedValue(() => ({ x: x.value, y: y.value }))}
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={radius} // Now correctly derived as a primitive number
+      color="#9D4EDD" // Purple color for chrono shards
+      opacity={opacity} // Animated opacity
     />
   );
 }
