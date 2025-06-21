@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Circle } from '@shopify/react-native-skia';
+import { Circle, Group, Paint, Blur } from '@shopify/react-native-skia';
 import {
   useSharedValue,
   useDerivedValue,
@@ -23,6 +23,7 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
   // Shared values for advanced visual effects
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0.8);
+  const glowIntensity = useSharedValue(0.6);
 
   // Update position shared values when props change
   useEffect(() => {
@@ -57,23 +58,67 @@ export default function ChronoShard({ x: initialX, y: initialY, size }: ChronoSh
       -1,
       true
     );
+
+    // Glow intensity animation
+    glowIntensity.value = withRepeat(
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
   }, []);
 
-  // Derive animated props for Skia Circle (these accept SharedValue/DerivedValue)
+  // Derive animated props for Skia components
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
 
-  // THE FIX: Calculate radius as a derived primitive value
-  // The 'r' prop is static and expects a number, not SharedValue
-  const radius = useDerivedValue(() => (size / 2) * scale.value);
+  // THE FIX: Calculate static prop values as primitives
+  // These are used directly as numbers, not as SharedValues
+  const baseRadius = size / 2;
 
   return (
-    <Circle
-      cx={cx}
-      cy={cy}
-      r={radius} // Now correctly derived as a primitive number
-      color="#9D4EDD" // Purple color for chrono shards
-      opacity={opacity} // Animated opacity
-    />
+    <Group>
+      {/* Outer mystical glow */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 2.2}
+        color="#9D4EDD"
+        opacity={0.2}
+      >
+        <Paint>
+          <Blur blur={6} />
+        </Paint>
+      </Circle>
+      
+      {/* Middle energy ring */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 1.6}
+        color="#C77DFF"
+        opacity={opacity}
+      />
+      
+      {/* Core chrono shard */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius}
+        color="#9D4EDD"
+        opacity={opacity}
+      />
+      
+      {/* Inner bright core */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 0.5}
+        color="#E0AAFF"
+        opacity={0.9}
+      />
+    </Group>
   );
 }

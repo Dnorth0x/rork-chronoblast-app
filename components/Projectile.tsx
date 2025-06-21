@@ -24,6 +24,7 @@ export default function Projectile({ x: initialX, y: initialY, size, color }: Pr
   const glowIntensity = useSharedValue(0.5);
   const coreScale = useSharedValue(1);
   const trailOpacity = useSharedValue(0.6);
+  const energyPulse = useSharedValue(0.8);
 
   // Update position shared values when props change
   useEffect(() => {
@@ -68,25 +69,45 @@ export default function Projectile({ x: initialX, y: initialY, size, color }: Pr
       -1,
       true
     );
+
+    // Energy pulse animation
+    energyPulse.value = withRepeat(
+      withTiming(1.1, {
+        duration: 200,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
   }, []);
 
   // Derive animated props for Skia components
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
 
-  // Calculate derived primitive values for static props
+  // Calculate static prop values as primitives
   const baseRadius = size / 2;
-  const coreRadius = useDerivedValue(() => baseRadius * coreScale.value);
-  const glowRadius = useDerivedValue(() => baseRadius * 1.8 * glowIntensity.value);
-  const trailRadius = useDerivedValue(() => baseRadius * 1.4);
 
   return (
     <Group>
+      {/* Outer energy field */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 2.5}
+        color={color}
+        opacity={0.15}
+      >
+        <Paint>
+          <Blur blur={8} />
+        </Paint>
+      </Circle>
+      
       {/* Outer glow effect */}
       <Circle
         cx={cx}
         cy={cy}
-        r={glowRadius}
+        r={baseRadius * 1.8}
         color={color}
         opacity={0.3}
       >
@@ -99,16 +120,25 @@ export default function Projectile({ x: initialX, y: initialY, size, color }: Pr
       <Circle
         cx={cx}
         cy={cy}
-        r={trailRadius}
+        r={baseRadius * 1.4}
         color={color}
         opacity={trailOpacity}
+      />
+      
+      {/* Energy ring */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 1.1}
+        color={color}
+        opacity={energyPulse}
       />
       
       {/* Core projectile */}
       <Circle
         cx={cx}
         cy={cy}
-        r={coreRadius}
+        r={baseRadius}
         color={color}
       />
       
@@ -119,6 +149,15 @@ export default function Projectile({ x: initialX, y: initialY, size, color }: Pr
         r={baseRadius * 0.4}
         color="#FFFFFF"
         opacity={0.8}
+      />
+      
+      {/* Central energy point */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={baseRadius * 0.15}
+        color="#FFFFFF"
+        opacity={1}
       />
     </Group>
   );
