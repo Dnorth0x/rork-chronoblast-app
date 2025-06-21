@@ -18,7 +18,7 @@ export default function HomeScreen() {
       />
       <View style={styles.container}>
         <Canvas style={styles.canvas}>
-          <Fill color={Colors.background} />
+          <Fill color={Colors.primary} />
         </Canvas>
         <View style={styles.gameContent}>
           <GameCanvas />
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: -1, // Ensures canvas is behind all other content
+    zIndex: -1,
   },
   gameContent: {
     flex: 1,
