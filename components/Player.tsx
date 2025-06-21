@@ -1,83 +1,51 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Canvas, Circle } from '@shopify/react-native-skia';
-import { useSharedValue, useDerivedValue, withTiming, withRepeat, withSequence } from 'react-native-reanimated';
-import { PlayerProps } from '@/types';
+import { Circle } from '@shopify/react-native-skia';
+import {
+  useSharedValue,
+  useDerivedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
-const Player = React.forwardRef<View, PlayerProps>(({ x, y, color, isInvincible }, ref) => {
-  // Shared values for smooth position interpolation
-  const animatedX = useSharedValue(x);
-  const animatedY = useSharedValue(y);
-  const opacity = useSharedValue(1);
+interface PlayerProps {
+  x: number;
+  y: number;
+  radius: number;
+}
 
-  // Update position with smooth timing when props change
+const Player: React.FC<PlayerProps> = ({ x: initialX, y: initialY, radius }) => {
+  // Principle 3: The "Bridge". These SharedValues live on the UI thread.
+  const x = useSharedValue(initialX);
+  const y = useSharedValue(initialY);
+
+  // This effect listens for changes from the GameEngine's state (the props).
   useEffect(() => {
-    animatedX.value = withTiming(x, { duration: 100 });
-    animatedY.value = withTiming(y, { duration: 100 });
-  }, [x, y]);
+    // When the engine's state changes, we command the UI thread to animate to the new position.
+    x.value = withTiming(initialX, {
+      duration: 100, // Keep animation snappy to match engine ticks
+      easing: Easing.linear,
+    });
+    y.value = withTiming(initialY, {
+      duration: 100,
+      easing: Easing.linear,
+    });
+  }, [initialX, initialY]); // Correct dependency array prevents unnecessary re-renders.
 
-  // Handle flashing effect when invincible
-  useEffect(() => {
-    if (isInvincible) {
-      // Start flashing animation
-      opacity.value = withRepeat(
-        withSequence(
-          withTiming(0.3, { duration: 100 }),
-          withTiming(1, { duration: 100 })
-        ),
-        -1, // Infinite repeat
-        false
-      );
-    } else {
-      // Stop flashing and reset opacity
-      opacity.value = withTiming(1, { duration: 100 });
-    }
-  }, [isInvincible]);
-
-  // Derived value for circle center
-  const center = useDerivedValue(() => ({
-    x: animatedX.value + 20, // Add radius to center the circle
-    y: animatedY.value + 20, // Add radius to center the circle
-  }));
-
-  // Derived value for circle opacity
-  const circleOpacity = useDerivedValue(() => opacity.value);
+  // Principle 1 & 2: API Precision and Data Flow.
+  // We derive the final props for the Skia component from our animated shared values.
+  // The Skia Circle component will now re-render on the UI thread whenever these values change.
+  // Note: We are explicitly using `cx` and `cy` as required by the Skia API.
+  const cx = useDerivedValue(() => x.value);
+  const cy = useDerivedValue(() => y.value);
 
   return (
-    <View 
-      ref={ref}
-      style={[
-        styles.container,
-        {
-          left: x,
-          top: y,
-        }
-      ]}
-    >
-      <Canvas style={styles.canvas}>
-        <Circle
-          center={center}
-          radius={20}
-          color={color}
-          opacity={circleOpacity}
-        />
-      </Canvas>
-    </View>
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={radius}
+      color="#38BDF8" // Using a color from our theme's accent
+    />
   );
-});
-
-Player.displayName = 'Player';
+};
 
 export default Player;
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-  },
-  canvas: {
-    width: 40,
-    height: 40,
-  },
-});
