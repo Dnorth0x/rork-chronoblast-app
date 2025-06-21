@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { GameState, GameAction, EnemyObject, ProjectileObject, ExplosionObject, ExplosionParticle, GameEvent } from '@/types/gameState';
+import { GameState, GameAction, EnemyObject, ProjectileObject, ExplosionObject, GameEvent } from '@/types/gameState';
 import { enemyData, enemyTypes } from './enemyData';
 import { weaponData } from './weaponData';
 
@@ -92,58 +92,14 @@ const findNearestEnemy = (playerPos: { x: number; y: number }, enemies: EnemyObj
   return nearestDistance <= weaponData.basic_orb.range ? nearestEnemy : null;
 };
 
-const createExplosion = (x: number, y: number, color: string = '#FF6B35', explosionId: number, intensity: number = 1): ExplosionObject => {
-  const baseParticleCount = 8;
-  const particleCount = Math.floor(baseParticleCount * intensity) + Math.floor(Math.random() * 4); // 8-12 particles base
-  const particles: ExplosionParticle[] = [];
-  
-  for (let i = 0; i < particleCount; i++) {
-    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
-    const speed = (2 + Math.random() * 3) * intensity; // Random speed between 2-5, scaled by intensity
-    const radius = (2 + Math.random() * 3) * Math.min(intensity, 1.5); // Random radius between 2-5, capped scaling
-    const life = (30 + Math.random() * 20) * intensity; // Life between 30-50 frames, scaled by intensity
-    
-    particles.push({
-      id: `particle-${explosionId}-${i}`,
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      radius,
-      color,
-      life,
-      maxLife: life,
-      alpha: 1.0,
-    });
-  }
-  
+const createExplosion = (x: number, y: number, explosionId: number): ExplosionObject => {
   return {
     id: `explosion-${explosionId}`,
     x,
     y,
-    particles,
+    particles: [], // Not used in the new self-animating approach
     createdAt: Date.now(),
   };
-};
-
-const updateExplosions = (explosions: ExplosionObject[]): ExplosionObject[] => {
-  return explosions.map(explosion => ({
-    ...explosion,
-    particles: explosion.particles.map(particle => {
-      const newLife = particle.life - 1;
-      const alpha = Math.max(0, newLife / particle.maxLife);
-      
-      return {
-        ...particle,
-        x: particle.x + particle.vx,
-        y: particle.y + particle.vy,
-        vx: particle.vx * 0.98, // Slight deceleration
-        vy: particle.vy * 0.98,
-        life: newLife,
-        alpha,
-      };
-    }).filter(particle => particle.life > 0),
-  })).filter(explosion => explosion.particles.length > 0);
 };
 
 const checkPlayerEnemyCollisions = (playerPos: { x: number; y: number }, enemies: EnemyObject[]) => {
@@ -225,10 +181,8 @@ const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies
             }
           });
           
-          // Create explosion at enemy position with enhanced VFX
-          const explosionColor = enemy.type === 'brute' ? '#FF4444' : '#FF6B35';
-          const explosionIntensity = enemy.type === 'brute' ? 1.5 : 1.0;
-          const explosion = createExplosion(enemyCenterX, enemyCenterY, explosionColor, currentExplosionId++, explosionIntensity);
+          // Create explosion at enemy position
+          const explosion = createExplosion(enemyCenterX, enemyCenterY, currentExplosionId++);
           newExplosions.push(explosion);
           
           // Dispatch explosion creation event
@@ -236,8 +190,8 @@ const checkProjectileEnemyCollisions = (projectiles: ProjectileObject[], enemies
             type: 'create-explosion',
             payload: { 
               position: { x: enemyCenterX, y: enemyCenterY },
-              color: explosionColor,
-              intensity: explosionIntensity
+              color: '#FF6B35',
+              intensity: 1.0
             }
           });
           
@@ -411,9 +365,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const explosion = createExplosion(
         action.payload.x,
         action.payload.y,
-        action.payload.color || '#FF6B35',
-        state.explosionIdCounter,
-        action.payload.intensity || 1.0
+        state.explosionIdCounter
       );
       
       return {
@@ -423,11 +375,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'UPDATE_EXPLOSIONS': {
+    case 'REMOVE_EXPLOSION': {
       return {
         ...state,
-        explosions: updateExplosions(state.explosions),
+        explosions: state.explosions.filter(explosion => explosion.id !== action.payload.id),
       };
+    }
+
+    case 'UPDATE_EXPLOSIONS': {
+      // No longer needed with self-animating explosions
+      return state;
     }
 
     case 'MOVE_ENTITIES': {
@@ -473,14 +430,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return inBounds && inRange;
       });
 
-      // Update explosions
-      const updatedExplosions = updateExplosions(state.explosions);
-
       return {
         ...state,
         enemies: updatedEnemies,
         projectiles: updatedProjectiles,
-        explosions: updatedExplosions,
       };
     }
 

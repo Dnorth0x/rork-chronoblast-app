@@ -119,6 +119,7 @@ export type GameAction =
   | { type: 'SPAWN_XP_ORB'; payload: XPOrbObject }
   | { type: 'SPAWN_CHRONO_SHARD'; payload: ChronoShardObject }
   | { type: 'CREATE_EXPLOSION'; payload: { x: number; y: number; color?: string; intensity?: number } }
+  | { type: 'REMOVE_EXPLOSION'; payload: { id: string } }
   | { type: 'UPDATE_ENEMIES'; payload: EnemyObject[] }
   | { type: 'UPDATE_PROJECTILES'; payload: ProjectileObject[] }
   | { type: 'UPDATE_EXPLOSIONS' }

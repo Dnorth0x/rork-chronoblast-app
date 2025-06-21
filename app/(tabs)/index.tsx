@@ -80,15 +80,9 @@ export default function HomeScreen() {
     };
   }, [onEvent]);
 
-  // Game loop for updating explosions
-  useEffect(() => {
-    const gameLoopId = setInterval(() => {
-      dispatch({ type: 'UPDATE_EXPLOSIONS' });
-    }, 16); // ~60 FPS
-
-    return () => {
-      clearInterval(gameLoopId);
-    };
+  // Handle explosion completion
+  const handleExplosionComplete = React.useCallback((explosionId: string) => {
+    dispatch({ type: 'REMOVE_EXPLOSION', payload: { id: explosionId } });
   }, []);
 
   return (
@@ -103,11 +97,12 @@ export default function HomeScreen() {
         <Canvas style={styles.canvas}>
           <Fill color={Colors.primary} />
           
-          {/* Render explosion particles */}
+          {/* Render self-animating explosions */}
           {gameState.explosions.map(explosion => (
             <Explosion 
               key={explosion.id} 
-              particles={explosion.particles}
+              explosion={explosion}
+              onComplete={handleExplosionComplete}
             />
           ))}
         </Canvas>

@@ -1,87 +1,55 @@
 import React, { useEffect } from 'react';
-import { Circle, Group } from '@shopify/react-native-skia';
+import { Circle } from '@shopify/react-native-skia';
 import {
   useSharedValue,
   useDerivedValue,
   withTiming,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
-import { ExplosionParticle } from '@/types/gameState';
+import { ExplosionObject } from '@/types/gameState';
 
 interface ExplosionProps {
-  particles: ExplosionParticle[];
+  explosion: ExplosionObject;
+  onComplete: (id: string) => void;
 }
 
-interface ParticleProps {
-  particle: ExplosionParticle;
-}
+const DURATION = 500;
 
-const Particle: React.FC<ParticleProps> = ({ particle }) => {
-  // PHASE 2: Enhanced VFX implementation using Skia Integration Doctrine v3
-  const x = useSharedValue(particle.x);
-  const y = useSharedValue(particle.y);
-  const radius = useSharedValue(particle.radius);
-  const alpha = useSharedValue(particle.alpha);
+const Explosion: React.FC<ExplosionProps> = ({ explosion, onComplete }) => {
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    // Smooth animation bridge from game engine to Skia
-    x.value = withTiming(particle.x, {
-      duration: 50,
-      easing: Easing.linear,
-    });
-    y.value = withTiming(particle.y, {
-      duration: 50,
-      easing: Easing.linear,
-    });
-    
-    // Animate particle fade and shrink
-    alpha.value = withTiming(particle.alpha, {
-      duration: 100,
+    // Start the animation immediately when component mounts
+    progress.value = withTiming(1, {
+      duration: DURATION,
       easing: Easing.out(Easing.quad),
+    }, (finished) => {
+      if (finished) {
+        runOnJS(onComplete)(explosion.id);
+      }
     });
-    
-    // Slight radius animation for more dynamic effect
-    radius.value = withTiming(particle.radius * (0.8 + particle.alpha * 0.2), {
-      duration: 100,
-      easing: Easing.out(Easing.quad),
-    });
-  }, [particle.x, particle.y, particle.alpha, particle.radius]);
+  }, [explosion.id, onComplete]);
 
-  // Animated props for Skia
-  const cx = useDerivedValue(() => x.value);
-  const cy = useDerivedValue(() => y.value);
+  // Animate radius from 0 to 40
+  const radius = useDerivedValue(() => progress.value * 40);
   
-  // Static props derived from shared values
-  const animatedRadius = useDerivedValue(() => radius.value);
-  const animatedAlpha = useDerivedValue(() => alpha.value);
+  // Animate alpha from 1 to 0
+  const alpha = useDerivedValue(() => 1 - progress.value);
   
-  // Create color with alpha
-  const particleColor = useDerivedValue(() => {
-    const alphaHex = Math.floor(animatedAlpha.value * 255).toString(16).padStart(2, '0');
-    return `${particle.color}${alphaHex}`;
+  // Create color with animated alpha
+  const color = useDerivedValue(() => {
+    const alphaHex = Math.floor(alpha.value * 255).toString(16).padStart(2, '0');
+    return `#FF6B35${alphaHex}`;
   });
 
   return (
     <Circle
-      cx={cx}
-      cy={cy}
-      r={animatedRadius}
-      color={particleColor}
+      cx={explosion.x}
+      cy={explosion.y}
+      r={radius}
+      color={color}
     />
-  );
-};
-
-const Explosion: React.FC<ExplosionProps> = ({ particles }) => {
-  if (!particles || particles.length === 0) {
-    return null;
-  }
-
-  return (
-    <Group>
-      {particles.map((particle) => (
-        <Particle key={particle.id} particle={particle} />
-      ))}
-    </Group>
   );
 };
 
