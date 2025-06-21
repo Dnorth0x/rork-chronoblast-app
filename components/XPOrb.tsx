@@ -38,7 +38,7 @@ const XPOrb: React.FC<XPOrbProps> = ({ x: initialX, y: initialY, size, value }) 
     pulseScale.value = withRepeat(
       withTiming(1.2, {
         duration: 800,
-        easing: Easing.inOut(Easing.sine),
+        easing: Easing.inOut(Easing.sin),
       }),
       -1,
       true

@@ -38,7 +38,7 @@ const ChronoShard: React.FC<ChronoShardProps> = ({ x: initialX, y: initialY, siz
     rotationScale.value = withRepeat(
       withTiming(1.3, {
         duration: 1200,
-        easing: Easing.inOut(Easing.sine),
+        easing: Easing.inOut(Easing.sin),
       }),
       -1,
       true
