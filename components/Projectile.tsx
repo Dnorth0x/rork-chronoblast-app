@@ -32,6 +32,7 @@ const Projectile: React.FC<ProjectileProps> = ({ x: initialX, y: initialY, size,
   }, [initialX, initialY]);
 
   // Animated props for Skia (cx, cy can accept SharedValue)
+  // Projectile position is center already from game logic
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
   

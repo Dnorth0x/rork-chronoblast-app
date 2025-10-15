@@ -1,95 +1,51 @@
-import React, { useReducer, useEffect } from 'react';
+import React, { useReducer, useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, PanResponder } from 'react-native';
 import { Canvas, Fill } from '@shopify/react-native-skia';
-import GameCanvas from '@/components/GameCanvas';
-import GameUI from '@/components/GameUI';
-import Overlay from '@/components/Overlay';
 import Explosion from '@/components/Explosion';
 import Enemy from '@/components/Enemy';
 import Projectile from '@/components/Projectile';
 import XPOrb from '@/components/XPOrb';
 import ChronoShard from '@/components/ChronoShard';
 import Player from '@/components/Player';
-import { Colors } from '@/constants/theme';
+import HUD from '@/components/HUD';
 import { GameEvent } from '@/types/gameState';
 import { setEventDispatcher, gameReducer, initialGameState } from '@/game/gameReducer';
+import MainMenuScreen from '@/components/MainMenuScreen';
 
 export default function HomeScreen() {
-  // Add game state management to access explosions and enemies
   const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
+  const [gameStarted, setGameStarted] = React.useState(false);
+  const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
+  const enemySpawnRef = useRef<NodeJS.Timeout | null>(null);
+  const projectileSpawnRef = useRef<NodeJS.Timeout | null>(null);
+  const invincibilityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Spawn a single enemy for testing the pipeline
-  useEffect(() => {
-    if (gameState.enemies.length === 0) {
-      dispatch({ type: 'SPAWN_ENEMY' });
-    }
-  }, [gameState.enemies.length]); // Runs once on mount
-
-  // PHASE 2: Properly typed event handler using SSOT
+  // Event handler
   const onEvent = React.useCallback((event: GameEvent) => {
-    // Handle game events with proper typing
     switch (event.type) {
       case 'create-explosion':
-        // VFX system integration - explosion creation is handled in the game reducer
-        console.log('Explosion created at:', event.payload.position);
-        dispatch({
-          type: 'CREATE_EXPLOSION',
-          payload: {
-            x: event.payload.position.x,
-            y: event.payload.position.y,
-            color: event.payload.color,
-            intensity: event.payload.intensity
-          }
-        });
+        console.log('💥 Explosion at:', event.payload.position);
         break;
-      
       case 'enemy_death':
-        console.log('Enemy defeated:', event.payload.enemyType, 'at', event.payload.position);
+        console.log('☠️ Enemy defeated:', event.payload.enemyType);
         break;
-      
-      case 'player_hit':
-        console.log('Player hit by enemy:', event.payload.enemyId, 'damage:', event.payload.damage);
-        break;
-      
-      case 'weapon_fire':
-        console.log('Weapon fired:', event.payload.projectileId);
-        break;
-      
       case 'xp_collected':
-        console.log('XP collected:', event.payload.value, 'from orb:', event.payload.orbId);
+        console.log('✨ XP collected:', event.payload.value);
         break;
-      
-      case 'shard_collected':
-        console.log('Chrono shard collected:', event.payload.value);
-        break;
-      
       case 'level_up':
-        console.log('Player leveled up to:', event.payload.newLevel);
+        console.log('🎉 Level up!', event.payload.newLevel);
         break;
-      
       case 'game_over':
-        console.log('Game over! Final score:', event.payload.finalScore, 'Time survived:', event.payload.survivalTime);
-        break;
-      
-      case 'power_up_activated':
-        console.log('Power-up activated:', event.payload.powerUpType, 'duration:', event.payload.duration);
-        break;
-      
-      default:
-        console.log('Unhandled event:', event.type);
+        console.log('💀 Game Over! Score:', event.payload.finalScore);
+        setGameStarted(false);
         break;
     }
   }, []);
 
-  // Set up event dispatcher on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     setEventDispatcher(onEvent);
-    
-    // Cleanup on unmount
-    return () => {
-      setEventDispatcher(() => {});
-    };
+    return () => setEventDispatcher(() => {});
   }, [onEvent]);
 
   // Handle explosion completion
@@ -97,33 +53,119 @@ export default function HomeScreen() {
     dispatch({ type: 'REMOVE_EXPLOSION', payload: { id: explosionId } });
   }, []);
 
+  // Touch controls
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => gameStarted,
+    onMoveShouldSetPanResponder: () => gameStarted,
+    onPanResponderGrant: (evt) => {
+      const { locationX, locationY } = evt.nativeEvent;
+      dispatch({ 
+        type: 'UPDATE_PLAYER_POSITION', 
+        payload: { x: locationX - 20, y: locationY - 20 } 
+      });
+    },
+    onPanResponderMove: (evt) => {
+      const { locationX, locationY } = evt.nativeEvent;
+      dispatch({ 
+        type: 'UPDATE_PLAYER_POSITION', 
+        payload: { x: locationX - 20, y: locationY - 20 } 
+      });
+    },
+  });
+
+  // Game loop
+  useEffect(() => {
+    if (!gameStarted) {
+      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (enemySpawnRef.current) clearInterval(enemySpawnRef.current);
+      if (projectileSpawnRef.current) clearInterval(projectileSpawnRef.current);
+      if (invincibilityTimerRef.current) clearTimeout(invincibilityTimerRef.current);
+      return;
+    }
+
+    // Main game loop - 60 FPS
+    gameLoopRef.current = setInterval(() => {
+      dispatch({ type: 'MOVE_ENTITIES' });
+      dispatch({ type: 'HANDLE_COLLISIONS' });
+      dispatch({ type: 'INCREMENT_TIME' });
+    }, 1000 / 60);
+
+    // Enemy spawning
+    const spawnEnemy = () => {
+      dispatch({ type: 'SPAWN_ENEMY' });
+    };
+    spawnEnemy(); // Spawn first enemy immediately
+    enemySpawnRef.current = setInterval(spawnEnemy, gameState.spawnRate);
+
+    // Projectile spawning
+    projectileSpawnRef.current = setInterval(() => {
+      dispatch({ type: 'SPAWN_PROJECTILE' });
+    }, 500); // Fire every 500ms
+
+    return () => {
+      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (enemySpawnRef.current) clearInterval(enemySpawnRef.current);
+      if (projectileSpawnRef.current) clearInterval(projectileSpawnRef.current);
+      if (invincibilityTimerRef.current) clearTimeout(invincibilityTimerRef.current);
+    };
+  }, [gameStarted, gameState.spawnRate]);
+
+  // Handle invincibility timer
+  useEffect(() => {
+    if (gameState.isPlayerInvincible) {
+      if (invincibilityTimerRef.current) clearTimeout(invincibilityTimerRef.current);
+      invincibilityTimerRef.current = setTimeout(() => {
+        dispatch({ type: 'SET_PLAYER_INVINCIBLE', payload: false });
+      }, 1000); // 1 second invincibility
+    }
+  }, [gameState.isPlayerInvincible]);
+
+  // Update enemy spawn rate dynamically
+  useEffect(() => {
+    if (gameStarted && enemySpawnRef.current) {
+      clearInterval(enemySpawnRef.current);
+      enemySpawnRef.current = setInterval(() => {
+        dispatch({ type: 'SPAWN_ENEMY' });
+      }, gameState.spawnRate);
+    }
+  }, [gameState.spawnRate, gameStarted]);
+
+  const handleStartGame = () => {
+    dispatch({ type: 'RESET_GAME' });
+    setGameStarted(true);
+  };
+
+  if (!gameStarted) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <MainMenuScreen onStartGame={handleStartGame} />
+      </>
+    );
+  }
+
   return (
     <>
-      <Stack.Screen 
-        options={{ 
-          title: 'ChronoBurst',
-          headerShown: false,
-        }} 
-      />
-      <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container} {...panResponder.panHandlers}>
         <Canvas style={styles.canvas}>
-          <Fill color={Colors.primary} />
+          <Fill color="#0a0a1a" />
           
-          {/* Render player */}
+          {/* Player */}
           <Player
             x={gameState.playerPosition.x}
             y={gameState.playerPosition.y}
             radius={20}
-            color="#38BDF8"
+            color="#00FFFF"
             isInvincible={gameState.isPlayerInvincible}
           />
           
-          {/* Render enemies */}
+          {/* Enemies */}
           {gameState.enemies.map(enemy => (
             <Enemy key={enemy.id} enemy={enemy} />
           ))}
           
-          {/* Render projectiles */}
+          {/* Projectiles */}
           {gameState.projectiles.map(projectile => (
             <Projectile
               key={projectile.id}
@@ -134,7 +176,7 @@ export default function HomeScreen() {
             />
           ))}
           
-          {/* Render XP orbs */}
+          {/* XP Orbs */}
           {gameState.xpOrbs.map(orb => (
             <XPOrb
               key={orb.id}
@@ -145,7 +187,7 @@ export default function HomeScreen() {
             />
           ))}
           
-          {/* Render chrono shards */}
+          {/* Chrono Shards */}
           {gameState.chronoShards.map(shard => (
             <ChronoShard
               key={shard.id}
@@ -156,7 +198,7 @@ export default function HomeScreen() {
             />
           ))}
           
-          {/* Render self-animating explosions */}
+          {/* Explosions */}
           {gameState.explosions.map(explosion => (
             <Explosion 
               key={explosion.id} 
@@ -165,11 +207,16 @@ export default function HomeScreen() {
             />
           ))}
         </Canvas>
-        <View style={styles.gameContent}>
-          <GameCanvas />
-          <GameUI />
-          <Overlay />
-        </View>
+        
+        <HUD
+          health={gameState.playerHealth}
+          maxHealth={gameState.maxPlayerHealth}
+          level={gameState.playerStats.level}
+          xp={gameState.playerStats.xp}
+          xpToNextLevel={gameState.playerStats.xpToNextLevel}
+          timeElapsed={gameState.timeElapsed}
+          onPause={() => setGameStarted(false)}
+        />
       </View>
     </>
   );
@@ -178,17 +225,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0a0a1a',
   },
   canvas: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: -1,
-  },
-  gameContent: {
     flex: 1,
-    zIndex: 1,
   },
 });

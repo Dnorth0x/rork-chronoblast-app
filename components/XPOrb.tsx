@@ -46,6 +46,7 @@ const XPOrb: React.FC<XPOrbProps> = ({ x: initialX, y: initialY, size, value }) 
   }, []);
 
   // Animated props for Skia
+  // XP Orb position is center from game logic
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
   

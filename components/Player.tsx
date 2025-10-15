@@ -65,21 +65,17 @@ const Player: React.FC<PlayerProps> = ({
   }, [isInvincible]);
 
   // Animated props for Skia (cx, cy can accept SharedValue)
-  const cx = useDerivedValue(() => x.value);
-  const cy = useDerivedValue(() => y.value);
-  
-  // Static props derived from shared values
-  const playerColor = useDerivedValue(() => {
-    const alphaHex = Math.floor(alpha.value * 255).toString(16).padStart(2, '0');
-    return `${color}${alphaHex}`;
-  });
+  // Player position is top-left, convert to center for Circle
+  const cx = useDerivedValue(() => x.value + radius);
+  const cy = useDerivedValue(() => y.value + radius);
 
   return (
     <Circle
       cx={cx}
       cy={cy}
       r={radius}
-      color={playerColor}
+      color={color}
+      opacity={alpha}
     />
   );
 };

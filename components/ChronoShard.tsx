@@ -46,6 +46,7 @@ const ChronoShard: React.FC<ChronoShardProps> = ({ x: initialX, y: initialY, siz
   }, []);
 
   // Animated props for Skia (cx, cy can accept SharedValue)
+  // ChronoShard position is center from game logic
   const cx = useDerivedValue(() => x.value);
   const cy = useDerivedValue(() => y.value);
   

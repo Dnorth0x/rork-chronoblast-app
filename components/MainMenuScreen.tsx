@@ -9,12 +9,20 @@ import { useCosmeticsStore } from '@/stores/cosmeticsStore';
 
 const { width, height } = Dimensions.get('window');
 
-const MainMenuScreen = () => {
+interface MainMenuScreenProps {
+  onStartGame?: () => void;
+}
+
+const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ onStartGame }) => {
   const { highScore, stats } = useGameStore();
   const { chronoCurrency } = useCosmeticsStore();
 
   const handleStartGame = () => {
-    router.push('/');
+    if (onStartGame) {
+      onStartGame();
+    } else {
+      router.push('/');
+    }
   };
 
   const handleShop = () => {

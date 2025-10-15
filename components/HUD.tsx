@@ -1,231 +1,193 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import { Colors, Fonts, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HUDProps {
-  score: number;
   health: number;
   maxHealth: number;
   level: number;
   xp: number;
   xpToNextLevel: number;
-  isPlayerInvincible?: boolean;
+  timeElapsed: number;
+  onPause?: () => void;
 }
 
-export default function HUD({ score, health, maxHealth, level, xp, xpToNextLevel, isPlayerInvincible = false }: HUDProps) {
-  const healthPercentage = Math.max(0, (health / maxHealth) * 100);
-  const xpPercentage = (xp / xpToNextLevel) * 100;
+const HUD: React.FC<HUDProps> = ({
+  health,
+  maxHealth,
+  level,
+  xp,
+  xpToNextLevel,
+  timeElapsed,
+  onPause,
+}) => {
+  const insets = useSafeAreaInsets();
 
-  const getHealthBarColor = () => {
-    if (healthPercentage > 60) return Colors.success;
-    if (healthPercentage > 30) return Colors.warning;
-    return Colors.danger;
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const healthPercentage = (health / maxHealth) * 100;
+  const xpPercentage = (xp / xpToNextLevel) * 100;
+
   return (
-    <>
-      {/* Health Display - Top Left */}
-      <View style={styles.healthContainer}>
-        <Text style={[styles.healthLabel, isPlayerInvincible && styles.invincibleText]}>
-          HEALTH
-        </Text>
-        <View style={styles.healthBarContainer}>
-          <View style={styles.healthBarBackground} />
-          <View 
-            style={[
-              styles.healthBarFill, 
-              { 
-                width: `${healthPercentage}%`,
-                backgroundColor: isPlayerInvincible ? Colors.accent : getHealthBarColor()
-              }
-            ]} 
-          />
-          <View style={styles.healthBarGlow} />
+    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+      <View style={styles.topRow}>
+        <View style={styles.leftSection}>
+          <View style={styles.healthContainer}>
+            <Text style={styles.label}>HP</Text>
+            <View style={styles.healthBar}>
+              <View 
+                style={[
+                  styles.healthFill, 
+                  { 
+                    width: `${healthPercentage}%`,
+                    backgroundColor: healthPercentage > 50 ? '#00ff00' : healthPercentage > 25 ? '#ffaa00' : '#ff0000'
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.healthText}>{health}/{maxHealth}</Text>
+          </View>
+          
+          <View style={styles.xpContainer}>
+            <Text style={styles.label}>Level {level}</Text>
+            <View style={styles.xpBar}>
+              <View style={[styles.xpFill, { width: `${xpPercentage}%` }]} />
+            </View>
+            <Text style={styles.xpText}>{xp}/{xpToNextLevel} XP</Text>
+          </View>
         </View>
-        <Text style={[styles.healthText, isPlayerInvincible && styles.invincibleText]}>
-          {health}/{maxHealth}
-        </Text>
-        {isPlayerInvincible && (
-          <Text style={styles.invincibleLabel}>SHIELD ACTIVE</Text>
-        )}
-      </View>
 
-      {/* Score Display - Top Center */}
-      <View style={styles.scoreContainer}>
-        <Text style={styles.scoreLabel}>SCORE</Text>
-        <Text style={styles.scoreValue}>{score * 10}</Text>
-      </View>
-
-      {/* Level and XP Display - Top Right */}
-      <View style={styles.levelContainer}>
-        <Text style={styles.levelText}>LVL {level}</Text>
-        <View style={styles.xpBarContainer}>
-          <View style={styles.xpBarBackground} />
-          <View 
-            style={[
-              styles.xpBarFill, 
-              { width: `${xpPercentage}%` }
-            ]} 
-          />
-          <View style={styles.xpBarGlow} />
+        <View style={styles.rightSection}>
+          <View style={styles.timeContainer}>
+            <Text style={styles.timeLabel}>TIME</Text>
+            <Text style={styles.timeValue}>{formatTime(timeElapsed)}</Text>
+          </View>
+          
+          {onPause && (
+            <TouchableOpacity style={styles.pauseButton} onPress={onPause}>
+              <Text style={styles.pauseText}>⏸</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={styles.xpText}>{xp}/{xpToNextLevel}</Text>
       </View>
-    </>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  healthContainer: {
+  container: {
     position: 'absolute',
-    top: 60,
-    left: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    pointerEvents: 'box-none',
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
+  },
+  leftSection: {
+    flex: 1,
+    gap: 8,
+  },
+  rightSection: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  healthContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 0, 0, 0.5)',
   },
-  healthLabel: {
-    color: Colors.muted,
-    fontSize: FontSizes.small,
-    fontFamily: Fonts.bold,
-    marginBottom: Spacing.xs,
-    letterSpacing: 1,
+  label: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  healthBarContainer: {
-    position: 'relative',
-    width: 120,
-    height: 12,
-    marginBottom: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+  healthBar: {
+    width: 150,
+    height: 16,
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+    borderRadius: 8,
     overflow: 'hidden',
+    marginBottom: 4,
   },
-  healthBarBackground: {
-    position: 'absolute',
-    width: '100%',
+  healthFill: {
     height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: BorderRadius.sm,
-  },
-  healthBarFill: {
-    position: 'absolute',
-    height: '100%',
-    borderRadius: BorderRadius.sm,
-    shadowColor: Colors.success,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
-  healthBarGlow: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
   },
   healthText: {
-    color: Colors.text,
-    fontSize: FontSizes.small,
-    fontFamily: Fonts.bold,
-  },
-  invincibleText: {
-    color: Colors.accent,
-  },
-  invincibleLabel: {
-    color: Colors.accent,
+    color: '#ffffff',
     fontSize: 10,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1,
-    marginTop: Spacing.xs,
+    fontWeight: '600',
   },
-  scoreContainer: {
-    position: 'absolute',
-    top: 60,
-    left: '50%',
-    transform: [{ translateX: -75 }],
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
+  xpContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    minWidth: 150,
+    borderColor: 'rgba(0, 255, 255, 0.5)',
   },
-  scoreLabel: {
-    color: Colors.muted,
-    fontSize: FontSizes.small,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-    marginBottom: Spacing.xs,
-  },
-  scoreValue: {
-    color: Colors.accent,
-    fontSize: FontSizes.large,
-    fontFamily: Fonts.bold,
-    textAlign: 'center',
-    textShadowColor: Colors.accent,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  levelContainer: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  levelText: {
-    color: Colors.warning,
-    fontSize: FontSizes.subtitle,
-    fontFamily: Fonts.bold,
-    marginBottom: Spacing.xs,
-    textShadowColor: Colors.warning,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
-  },
-  xpBarContainer: {
-    position: 'relative',
-    width: 140,
-    height: 8,
-    marginBottom: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+  xpBar: {
+    width: 150,
+    height: 12,
+    backgroundColor: 'rgba(0, 255, 255, 0.2)',
+    borderRadius: 6,
     overflow: 'hidden',
+    marginBottom: 4,
   },
-  xpBarBackground: {
-    position: 'absolute',
-    width: '100%',
+  xpFill: {
     height: '100%',
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    borderRadius: BorderRadius.sm,
-  },
-  xpBarFill: {
-    position: 'absolute',
-    height: '100%',
-    backgroundColor: Colors.warning,
-    borderRadius: BorderRadius.sm,
-    shadowColor: Colors.warning,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
-  xpBarGlow: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    backgroundColor: '#00ffff',
+    borderRadius: 6,
   },
   xpText: {
-    color: 'rgba(245, 158, 11, 0.8)',
-    fontSize: FontSizes.small,
-    fontFamily: Fonts.main,
+    color: '#00ffff',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  timeContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    minWidth: 80,
+  },
+  timeLabel: {
+    color: '#aaaaaa',
+    fontSize: 9,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  timeValue: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  pauseButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  pauseText: {
+    fontSize: 20,
   },
 });
+
+export default HUD;

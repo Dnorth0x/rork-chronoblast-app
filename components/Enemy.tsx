@@ -30,8 +30,9 @@ const Enemy: React.FC<EnemyProps> = ({ enemy }) => {
   }, [enemy.x, enemy.y]);
 
   // Animated props for Skia (cx, cy can accept SharedValue)
-  const cx = useDerivedValue(() => x.value);
-  const cy = useDerivedValue(() => y.value);
+  // Enemy position is top-left, but Circle needs center position
+  const cx = useDerivedValue(() => x.value + enemy.size / 2);
+  const cy = useDerivedValue(() => y.value + enemy.size / 2);
   
   // Calculate radius from size (static prop)
   const radius = enemy.size / 2;
