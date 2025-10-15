@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect, useRef } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { Canvas, Fill } from '@shopify/react-native-skia';
@@ -7,6 +7,10 @@ import GameUI from '@/components/GameUI';
 import Overlay from '@/components/Overlay';
 import Explosion from '@/components/Explosion';
 import Enemy from '@/components/Enemy';
+import Projectile from '@/components/Projectile';
+import XPOrb from '@/components/XPOrb';
+import ChronoShard from '@/components/ChronoShard';
+import Player from '@/components/Player';
 import { Colors } from '@/constants/theme';
 import { GameEvent } from '@/types/gameState';
 import { setEventDispatcher, gameReducer, initialGameState } from '@/game/gameReducer';
@@ -18,9 +22,9 @@ export default function HomeScreen() {
   // Spawn a single enemy for testing the pipeline
   useEffect(() => {
     if (gameState.enemies.length === 0) {
-      dispatch({ type: 'SPAWN_ENEMY', payload: {} });
+      dispatch({ type: 'SPAWN_ENEMY' });
     }
-  }, []); // Runs once on mount
+  }, [gameState.enemies.length]); // Runs once on mount
 
   // PHASE 2: Properly typed event handler using SSOT
   const onEvent = React.useCallback((event: GameEvent) => {
@@ -105,9 +109,51 @@ export default function HomeScreen() {
         <Canvas style={styles.canvas}>
           <Fill color={Colors.primary} />
           
+          {/* Render player */}
+          <Player
+            x={gameState.playerPosition.x}
+            y={gameState.playerPosition.y}
+            radius={20}
+            color="#38BDF8"
+            isInvincible={gameState.isPlayerInvincible}
+          />
+          
           {/* Render enemies */}
           {gameState.enemies.map(enemy => (
             <Enemy key={enemy.id} enemy={enemy} />
+          ))}
+          
+          {/* Render projectiles */}
+          {gameState.projectiles.map(projectile => (
+            <Projectile
+              key={projectile.id}
+              x={projectile.x}
+              y={projectile.y}
+              size={projectile.size}
+              color={projectile.color}
+            />
+          ))}
+          
+          {/* Render XP orbs */}
+          {gameState.xpOrbs.map(orb => (
+            <XPOrb
+              key={orb.id}
+              x={orb.x}
+              y={orb.y}
+              size={orb.size}
+              value={orb.value}
+            />
+          ))}
+          
+          {/* Render chrono shards */}
+          {gameState.chronoShards.map(shard => (
+            <ChronoShard
+              key={shard.id}
+              x={shard.x}
+              y={shard.y}
+              size={shard.size}
+              value={shard.value}
+            />
           ))}
           
           {/* Render self-animating explosions */}

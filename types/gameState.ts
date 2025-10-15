@@ -114,8 +114,8 @@ export type GameEvent =
 // Action types with proper event integration
 export type GameAction =
   | { type: 'UPDATE_PLAYER_POSITION'; payload: PlayerPosition }
-  | { type: 'SPAWN_ENEMY'; payload: EnemyObject }
-  | { type: 'SPAWN_PROJECTILE'; payload: ProjectileObject }
+  | { type: 'SPAWN_ENEMY'; payload?: Partial<EnemyObject> }
+  | { type: 'SPAWN_PROJECTILE'; payload?: Partial<ProjectileObject> }
   | { type: 'SPAWN_XP_ORB'; payload: XPOrbObject }
   | { type: 'SPAWN_CHRONO_SHARD'; payload: ChronoShardObject }
   | { type: 'CREATE_EXPLOSION'; payload: { x: number; y: number; color?: string; intensity?: number } }
